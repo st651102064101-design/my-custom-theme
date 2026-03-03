@@ -1,0 +1,96 @@
+{
+    "$schema": "https://schemas.wp.org/trunk/theme.json",
+    "version": 3,
+    "settings": {
+        "appearanceTools": true,
+        "color": {
+            "palette": [
+                { "slug": "primary", "color": "#2563eb", "name": "Primary" },
+                { "slug": "primary-dark", "color": "#1e40af", "name": "Primary Dark" },
+                { "slug": "white", "color": "#ffffff", "name": "White" },
+                { "slug": "black", "color": "#000000", "name": "Black" },
+                { "slug": "tertiary", "color": "#f8fafc", "name": "Tertiary" },
+                { "slug": "dark-text", "color": "#1e293b", "name": "Dark Text" },
+                { "slug": "gray-text", "color": "#64748b", "name": "Gray Text" },
+                { "slug": "footer-dark", "color": "#1e293b", "name": "Footer Dark" }
+            ]
+        },
+        "typography": {
+            "fontFamilies": [
+                {
+                    "fontFamily": "'Sarabun', sans-serif",
+                    "slug": "sarabun",
+                    "name": "Sarabun"
+                }
+            ],
+            "fontSizes": [
+                { "slug": "small", "size": "13px", "name": "Small" },
+                { "slug": "medium", "size": "20px", "name": "Medium" },
+                { "slug": "large", "size": "36px", "name": "Large" },
+                { "slug": "x-large", "size": "42px", "name": "Extra Large" }
+            ]
+        },
+        "layout": {
+            "contentSize": "1140px",
+            "wideSize": "1320px"
+        },
+        "spacing": {
+            "units": ["px", "em", "rem", "%", "vh", "vw"]
+        },
+        "useRootPaddingAwareAlignments": true
+    },
+    "styles": {
+        "spacing": {
+            "padding": {
+                "top": "0px",
+                "bottom": "0px",
+                "left": "0px",
+                "right": "0px"
+            }
+        },
+        "color": {
+            "background": "#ffffff",
+            "text": "#1e293b"
+        },
+        "typography": {
+            "fontFamily": "var(--wp--preset--font-family--sarabun)"
+        },
+        "elements": {
+            "link": {
+                "color": {
+                    "text": "#2563eb"
+                },
+                ":hover": {
+                    "color": {
+                        "text": "#1e40af"
+                    }
+                }
+            },
+            "button": {
+                "color": {
+                    "background": "#2563eb",
+                    "text": "#ffffff"
+                },
+                ":hover": {
+                    "color": {
+                        "background": "#1e40af"
+                    }
+                },
+                "border": {
+                    "radius": "6px"
+                }
+            }
+        }
+    },
+    "templateParts": [
+        { "name": "header", "title": "Header", "area": "header" },
+        { "name": "footer", "title": "Footer", "area": "footer" }
+    ],
+    "customTemplates": [
+        { "name": "page-full-width", "title": "Full Width Page", "postTypes": ["page"] },
+        { "name": "single-product", "title": "Product Detail", "postTypes": ["product"] },
+        { "name": "404", "title": "404 Not Found", "postTypes": ["page"] },
+        { "name": "archive", "title": "Archive", "postTypes": ["page"] },
+        { "name": "search", "title": "Search Results", "postTypes": ["page"] }
+    ]
+}

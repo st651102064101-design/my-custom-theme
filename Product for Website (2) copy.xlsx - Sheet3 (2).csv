@@ -1,0 +1,98 @@
+,Category,Application Type,Winding Construction,Core Shape, Core Size,Bobbin pin type,wire type,Wire size,Packing options,Standards,Operating Temperatures
+,Transformer,Flyback,"Primary, Auxiliary and Secondary","EE, ETD, EFD, etc.","5mm - 20mm : 0.5-10 W
+20mm - 30mm : 10-50 W
+30mm - 40mm : 50-150 W","SMD, Through hole, fly wire","Enemelled copper wire
+Triple / Fully insulated wire (TIW/FIW)
+Litz / Multi-Strand wire","0.1–0.3 mm
+0.25–0.60 mm
+0.40–1.0 mm","Tray, Reel",RoHS,"130C, 155C"
+,,Forward,"Primary, Auxiliary and Secondary","ETD, EER, PQ etc. 
+(ETD, EER, PQ นิยมมากกว่า EE)","5mm - 20mm : 0.5-10 W
+20mm - 30mm : 10-50 W
+30mm - 40mm : 50-150 W","SMD, Through hole, fly wire","Enemelled copper wire
+Triple / Fully insulated wire (TIW/FIW)
+Litz / Multi-Strand wire","0.15–0.35 mm
+0.25–0.60 mm
+0.40–1.0 mm","Tray, Reel",RoHS,"130C, 155C"
+,,Resonant,"Primary, Auxiliary and Secondary","ETD, EER, PQ etc.","5mm - 20mm : 0.5-10 W
+20mm - 30mm : 10-50 W
+30mm - 40mm : 50-150 W","SMD, Through hole, fly wire","Enemelled copper wire
+Triple / Fully insulated wire (TIW/FIW)
+Litz / Multi-Strand wire","0.15–0.35 mm
+0.25–0.60 mm
+0.40–1.0 mm","Tray, Reel",RoHS,"130C, 155C"
+,,Power,"Primary layer winding. and secondary
+add Mylar, PET, Nomex for 220-240 V
+bifilar / parallel winding
+Isolation transformer",EI/UI Laminated Steel,"28mm - 48mm : 1-40 W
+48mm - 76mm : 40-200 W
+76mm - 96mm : 200-500 W","Through hole, fly wire, 
+socket terminal","Enemelled copper wire
+Triple / Fully insulated wire (TIW/FIW)
+Litz / Multi-Strand wire
+Copper foil","0.10–0.60 mm
+0.25–1.50 mm
+0.60–2.50 mm","Tray, Reel",RoHS,"130C, 155C"
+,,Gate drive,"Primary–Seccondary ≈ 1:1 / 1:2
+small number of turns (5–30 turns)","Toroid, EE/EI, RM etc.","5mm - 15mm : 0.5-10 W
+15mm - 25mm : 10-50 W
+25mm - 40mm : 30-50 W","SMD, Through hole, fly wire","Enemelled copper wire
+Triple / Fully insulated wire (TIW/FIW)
+Litz / Multi-Strand wire","0.10–0.20 mm
+0.15–0.30 mm
+0.30–0.5 mm","Tray, Reel",RoHS,"130C, 155C"
+,,Telecom (Enercon),"low turns (5–100), high frequency (100 kHz – 10 MHz+)
+Primary–Seccondary ≈ 1:1 or small for impedance matching","Toroid, EE/EI, RM etc.","5mm - 10mm : 0.25-2 W
+10mm - 20mm : 1-5 W
+20mm - 40mm : 5-50 W","SMD, Through hole, fly wire","Enemelled copper wire
+Triple / Fully insulated wire (TIW/FIW)
+Litz / Multi-Strand wire","0.08–0.35 mm
+0.10–0.40 mm
+0.18–0.80 mm","Tray, Reel",RoHS,"130C, 155C"
+,,,,,,,,,"Tray, Reel",RoHS,"130C, 155C"
+,Inductor,Common-mode choke,"≥ 2 Winding
+Primary–Seccondary = 1:1","Torioid, EE, UU etc.","5mm - 15mm : 0.1-5 W
+15mm - 30mm : 5-100 W
+30mm - 50mm : 100-300 W
+50mm - 75mm : 300-1000 W","SMD, Through hole","Enemelled copper wire
+Triple / Fully insulated wire (TIW/FIW)
+Litz / Multi-Strand wire","0.05–0.2 mm
+0.15–0.5 mm
+0.3–0.8 mm
+0.6–1.2 mm","Tray, Reel",RoHS,"130C, 155C"
+,,Output filter,Single winding,"Toroid, Drum Core, Rod Core","5mm - 15mm : 0.1-5 W
+15mm - 30mm : 5-100 W
+30mm - 50mm : 100-300 W
+50mm - 75mm : 300-1000 W","SMD, Through hole","Enemelled copper wire
+Triple / Fully insulated wire (TIW/FIW)
+Litz / Multi-Strand wire","0.1–0.3 mm
+0.2–0.6 mm
+0.5–1.0 mm
+1.0–2.5 mm","Tray, Reel",RoHS,"130C, 155C"
+,,Input filter,Single winding,"Toroid, Drum Core, Rod Core","5mm - 15mm : 0.1-5 W
+15mm - 30mm : 5-100 W
+30mm - 50mm : 100-300 W
+50mm - 75mm : 300-1000 W","SMD, Through hole","Enemelled copper wire
+Triple / Fully insulated wire (TIW/FIW)
+Litz / Multi-Strand wire","0.1–0.3 mm
+0.2–0.6 mm
+0.5–1.0 mm
+1.0–2.5 mm","Tray, Reel",RoHS,"130C, 155C"
+,,Power factor correction choke,Single winding,"Toroid, ETD, EE","5mm - 15mm : ≤10 W
+15mm - 30mm : 50-300 W
+30mm - 50mm : 300-800 W
+50mm - 75mm : 800-2000 W","SMD, Through hole, fly wire","Enemelled copper wire
+Triple / Fully insulated wire (TIW/FIW)
+Litz / Multi-Strand wire","0.15–0.35 mm
+0.3–0.8 mm
+0.6–1.2 mm
+1.0–2.5 mm","Tray, Reel",RoHS,"130C, 155C"
+,Antenna,Ferrite core antenna,Single winding,Rod core,"Core Length :
+45mm – 70 mm : 0.5-5 W 
+70mm – 100 mm : 1-10 W
+100mm – 140 mm : 5-20 W ","SMD, Through hole, fly wire","Enemelled copper wire
+Triple / Fully insulated wire (TIW/FIW)
+Litz / Multi-Strand wire","0.07–0.20 mm
+0.10–0.30 mm
+0.20–0.50 mm","Tray, Reel",RoHS,"130C, 155C"
+,,Air coil,Single winding / Multi-turn ,"Solenoid, Flat spiral, Helical",,,"enemel copper wire, Self-bonding wire",0.14-0.20,"Tray, Reel",RoHS,"130C, 155C"

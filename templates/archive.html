@@ -1,0 +1,47 @@
+<!-- wp:template-part {"slug":"header","area":"header"} /-->
+
+<!-- wp:group {"tagName":"main","style":{"spacing":{"padding":{"top":"40px","bottom":"60px"}}},"layout":{"type":"constrained"}} -->
+<main class="wp-block-group" style="padding-top:40px;padding-bottom:60px">
+
+    <!-- wp:group {"style":{"spacing":{"margin":{"bottom":"32px"}}},"layout":{"type":"constrained"}} -->
+    <div class="wp-block-group" style="margin-bottom:32px">
+        <!-- wp:query-title {"type":"archive","textAlign":"center","style":{"typography":{"fontSize":"32px","fontWeight":"700"}}} /-->
+        <!-- wp:term-description {"textAlign":"center","style":{"color":{"text":"#64748b"}}} /-->
+    </div>
+    <!-- /wp:group -->
+
+    <!-- wp:query {"queryId":1,"query":{"perPage":12,"pages":0,"offset":0,"postType":"post","order":"desc","orderBy":"date","inherit":true},"layout":{"type":"default"}} -->
+    <div class="wp-block-query">
+        <!-- wp:post-template {"layout":{"type":"grid","columnCount":3}} -->
+            <!-- wp:group {"style":{"border":{"radius":"12px","width":"1px","color":"#e2e8f0"},"spacing":{"padding":{"top":"0","bottom":"20px","left":"0","right":"0"}}},"layout":{"type":"default"}} -->
+            <div class="wp-block-group" style="border-color:#e2e8f0;border-width:1px;border-radius:12px;padding-top:0;padding-right:0;padding-bottom:20px;padding-left:0">
+                <!-- wp:post-featured-image {"isLink":true,"style":{"border":{"radius":{"topLeft":"12px","topRight":"12px"}},"spacing":{"margin":{"bottom":"16px"}}}} /-->
+                <!-- wp:group {"style":{"spacing":{"padding":{"left":"20px","right":"20px"}}},"layout":{"type":"default"}} -->
+                <div class="wp-block-group" style="padding-left:20px;padding-right:20px">
+                    <!-- wp:post-title {"level":3,"isLink":true,"style":{"typography":{"fontSize":"16px","fontWeight":"600"},"spacing":{"margin":{"bottom":"8px"}}}} /-->
+                    <!-- wp:post-excerpt {"moreText":"อ่านเพิ่มเติม →","excerptLength":20,"style":{"typography":{"fontSize":"13px"},"color":{"text":"#64748b"}}} /-->
+                    <!-- wp:post-date {"style":{"typography":{"fontSize":"12px"},"color":{"text":"#94a3b8"}}} /-->
+                </div>
+                <!-- /wp:group -->
+            </div>
+            <!-- /wp:group -->
+        <!-- /wp:post-template -->
+
+        <!-- wp:query-pagination {"layout":{"type":"flex","justifyContent":"center"},"style":{"spacing":{"margin":{"top":"40px"}}}} -->
+            <!-- wp:query-pagination-previous /-->
+            <!-- wp:query-pagination-numbers /-->
+            <!-- wp:query-pagination-next /-->
+        <!-- /wp:query-pagination -->
+
+        <!-- wp:query-no-results -->
+            <!-- wp:paragraph {"align":"center","style":{"color":{"text":"#64748b"}}} -->
+            <p class="has-text-align-center has-text-color" style="color:#64748b">ไม่พบเนื้อหาในหมวดหมู่นี้</p>
+            <!-- /wp:paragraph -->
+        <!-- /wp:query-no-results -->
+    </div>
+    <!-- /wp:query -->
+
+</main>
+<!-- /wp:group -->
+
+<!-- wp:template-part {"slug":"footer","area":"footer"} /-->

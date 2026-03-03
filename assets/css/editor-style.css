@@ -1,0 +1,13 @@
+/**
+ * Editor Styles
+ * สำหรับ Gutenberg Editor
+ */
+
+body {
+    font-family: 'Sarabun', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+}
+
+/* Import Google Font */
+@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');

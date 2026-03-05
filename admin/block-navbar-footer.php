@@ -157,13 +157,13 @@ add_shortcode('kv_navbar', function () {
     $logo_alt = esc_attr(get_option('nav_logo_alt', get_bloginfo('name')));
 
     // Phone CTA
-    $default_phone_raw = '+66 (0)2 108 8521';
+    $default_phone_raw = '+66 2 108 8521';
     $site_phone_raw = get_option('site_phone', get_theme_mod('site_phone', $default_phone_raw));
     if (function_exists('kv_clean_text_option_value')) {
         $site_phone_raw = kv_clean_text_option_value($site_phone_raw, $default_phone_raw);
     }
-    $phone_display = kv_format_phone_th((string) $site_phone_raw);
-    if (!$phone_display) $phone_display = kv_format_phone_th($default_phone_raw);
+    $phone_display = trim((string) $site_phone_raw);
+    if ($phone_display === '') $phone_display = $default_phone_raw;
 
     $nav_cta_text = get_option('nav_cta_text', '');
     $nav_cta_url  = get_option('nav_cta_url', '/contact/');
@@ -395,7 +395,7 @@ body{font-family:'Sarabun',sans-serif;}
             </ul>
             <?php if (get_option('nav_cta_visible','1') === '1') : ?>
             <a href="<?php echo esc_url($nav_cta_href); ?>"
-               class="navbar-kv-cta d-none d-lg-inline-flex align-items-center gap-2">
+               class="navbar-kv-cta d-inline-flex align-items-center gap-2 mt-2 mt-lg-0 ms-lg-3">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-telephone" viewBox="0 0 16 16">
                     <path d="M3.654 1.328a.678.678 0 0 0-1.015-.063L1.605 2.3c-.483.484-.661 1.169-.45 1.77a17.6 17.6 0 0 0 4.168 6.608 17.6 17.6 0 0 0 6.608 4.168c.601.211 1.286.033 1.77-.45l1.034-1.034a.678.678 0 0 0-.063-1.015l-2.307-1.794a.68.68 0 0 0-.58-.122l-2.19.547a1.745 1.745 0 0 1-1.657-.459L5.482 8.062a1.745 1.745 0 0 1-.46-1.657l.548-2.19a.68.68 0 0 0-.122-.58z"/>
                 </svg>
@@ -450,8 +450,10 @@ body{font-family:'Sarabun',sans-serif;}
 add_shortcode('kv_footer', function () {
     ob_start();
 
-    $footer_phone_raw   = get_option('site_phone', get_theme_mod('site_phone', ''));
-    $footer_phone_label = kv_format_phone_th($footer_phone_raw);
+    $footer_phone_raw   = function_exists('kv_get_site_phone_raw_display')
+        ? kv_get_site_phone_raw_display('+66 2 108 8521')
+        : trim((string) get_option('site_phone', get_theme_mod('site_phone', '+66 2 108 8521')));
+    $footer_phone_label = $footer_phone_raw !== '' ? $footer_phone_raw : '+66 2 108 8521';
     $footer_phone_href  = preg_replace('/[^0-9+]/', '', (string) $footer_phone_raw);
     $footer_email       = get_option('site_email', get_theme_mod('site_email', 'info@company.com'));
     $footer_address     = get_option('site_address', get_theme_mod('site_address', '123 Industrial Zone, Bangkok, Thailand'));

@@ -8,7 +8,7 @@
  */
 
 // ── Pull contact data from DB ──────────────────────────────────────────────
-$pc_phone        = kv_format_phone_th(get_option('site_phone', ''));
+$pc_phone        = function_exists('kv_get_site_phone_raw_display') ? kv_get_site_phone_raw_display('+66 2 108 8521') : trim((string) get_option('site_phone', '+66 2 108 8521'));
 $pc_fax          = kv_format_phone_th(get_option('site_fax',   ''));
 $pc_email        = get_option('site_email',         'info@company.com');
 $pc_email_sales  = get_option('site_email_sales',   'sales@company.com');
@@ -94,7 +94,7 @@ get_template_part('parts/page-banner');
                         <div>
                             <h4 style="margin:0 0 6px;font-size:17px;color:#1e293b;">Phone</h4>
                             <p style="margin:0;color:#64748b;line-height:1.8;">
-                                <a href="tel:<?php echo esc_attr(preg_replace('/\s+/', '', $pc_phone)); ?>" style="color:#64748b;text-decoration:none;"><?php echo esc_html($pc_phone); ?></a><br>
+                                <a href="tel:<?php echo esc_attr(preg_replace('/[^0-9+]/', '', $pc_phone)); ?>" style="color:#64748b;text-decoration:none;"><?php echo esc_html($pc_phone); ?></a><br>
                                 <?php if ($pc_fax) : ?>
                                 <span><?php echo esc_html($pc_fax); ?> (Fax)</span>
                                 <?php endif; ?>

@@ -8,6 +8,13 @@
  * Block Types: core/post-content
  * Post Types: page
  */
+
+$kv_contact_phone = function_exists('kv_get_site_phone_raw_display')
+	? kv_get_site_phone_raw_display('+66 2 108 8521')
+	: trim((string) get_option('site_phone', '+66 2 108 8521'));
+$kv_contact_fax = function_exists('kv_get_site_fax_raw_display')
+	? kv_get_site_fax_raw_display('')
+	: trim((string) get_option('site_fax', ''));
 ?>
 <!-- wp:cover {"overlayColor":"primary","align":"full","style":{"spacing":{"padding":{"top":"64px","bottom":"64px"}}}} -->
 <div class="wp-block-cover alignfull" style="padding-top:64px;padding-bottom:64px"><span aria-hidden="true" class="wp-block-cover__background has-primary-background-color has-background-dim-100 has-background-dim"></span><div class="wp-block-cover__inner-container">
@@ -57,7 +64,7 @@
 <div class="wp-block-group kv-contact-item" style="border-radius:0px;padding-top:18px;padding-right:18px;padding-bottom:18px;padding-left:18px">
 <!-- wp:columns {"verticalAlignment":"top"} --><div class="wp-block-columns are-vertically-aligned-top">
 <!-- wp:column {"width":"54px"} --><div class="wp-block-column" style="flex-basis:54px"><!-- wp:paragraph {"fontSize":"large"} --><p class="has-large-font-size">📞</p><!-- /wp:paragraph --></div><!-- /wp:column -->
-<!-- wp:column --><div class="wp-block-column"><!-- wp:heading {"level":4,"style":{"spacing":{"margin":{"bottom":"4px"}}}} --><h4 class="wp-block-heading" style="margin-bottom:4px">Phone</h4><!-- /wp:heading --><!-- wp:paragraph --><p>+66 2 108 8521</p><!-- /wp:paragraph --></div><!-- /wp:column -->
+<!-- wp:column --><div class="wp-block-column"><!-- wp:heading {"level":4,"style":{"spacing":{"margin":{"bottom":"4px"}}}} --><h4 class="wp-block-heading" style="margin-bottom:4px">Phone</h4><!-- /wp:heading --><!-- wp:paragraph --><p><?php echo esc_html($kv_contact_phone !== '' ? $kv_contact_phone : '+66 2 108 8521'); ?><?php if ($kv_contact_fax !== '') : ?><br><span>Fax: <?php echo esc_html($kv_contact_fax); ?></span><?php endif; ?></p><!-- /wp:paragraph --></div><!-- /wp:column -->
 </div><!-- /wp:columns --></div>
 <!-- /wp:group -->
 

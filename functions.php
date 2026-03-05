@@ -315,6 +315,23 @@ function kv_format_phone_th($raw) {
     return $s;
 }
 
+function kv_get_site_phone_raw_display($default = '+66 2 108 8521') {
+    $raw = get_option('site_phone', get_theme_mod('site_phone', $default));
+    if (function_exists('kv_clean_text_option_value')) {
+        $raw = kv_clean_text_option_value($raw, $default);
+    }
+    $display = trim((string) $raw);
+    return $display !== '' ? $display : $default;
+}
+
+function kv_get_site_fax_raw_display($default = '') {
+    $raw = get_option('site_fax', get_theme_mod('site_fax', $default));
+    if (function_exists('kv_clean_text_option_value')) {
+        $raw = kv_clean_text_option_value($raw, $default);
+    }
+    return trim((string) $raw);
+}
+
 function my_theme_get_company_stats_values() {
     $years_auto    = get_option('site_years_auto', '0');
     $products_auto = get_option('site_products_auto', '0');
@@ -337,6 +354,106 @@ function my_theme_get_company_stats_values() {
         'countries' => (int) get_option('site_countries_served', 50),
         'customers' => (int) get_option('site_happy_customers', 1000),
     ];
+}
+
+function my_theme_default_about_certifications() {
+    return array(
+        array('icon' => '🏆', 'title' => 'ISO 9001:2015', 'description' => 'Quality Management System Certified'),
+        array('icon' => '🌿', 'title' => 'ISO 14001:2015', 'description' => 'Environmental Management Certified'),
+        array('icon' => '🇹🇭', 'title' => 'BOI Promoted', 'description' => 'Thailand Board of Investment'),
+        array('icon' => '✅', 'title' => 'RoHS3 & IPC-A-610', 'description' => 'Conflict Free Compliant'),
+        array('icon' => '⚙️', 'title' => 'Custom Manufacturing', 'description' => 'Design-to-production support'),
+    );
+}
+
+function my_theme_sanitize_about_certifications_json($raw) {
+    $decoded = array();
+
+    if (is_array($raw)) {
+        $decoded = $raw;
+    } elseif (is_string($raw) && trim($raw) !== '') {
+        $decoded = json_decode(wp_unslash($raw), true);
+        if (!is_array($decoded)) {
+            $decoded = array();
+        }
+    }
+
+    $items = array();
+    foreach ($decoded as $item) {
+        if (!is_array($item)) continue;
+        if (count($items) >= 5) break;
+
+        $icon = sanitize_text_field((string) ($item['icon'] ?? ''));
+        $title = sanitize_text_field((string) ($item['title'] ?? ''));
+        $description = sanitize_text_field((string) ($item['description'] ?? ''));
+
+        if ($icon === '' && $title === '' && $description === '') continue;
+        if ($icon === '') $icon = '✅';
+
+        $items[] = array(
+            'icon' => $icon,
+            'title' => $title,
+            'description' => $description,
+        );
+    }
+
+    if (empty($items)) {
+        $items = my_theme_default_about_certifications();
+    }
+
+    return wp_json_encode($items, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+}
+
+function my_theme_get_about_certifications() {
+    $raw = get_option('about_certifications_json', '');
+    $json = my_theme_sanitize_about_certifications_json($raw);
+    $items = json_decode($json, true);
+    if (!is_array($items) || empty($items)) {
+        return my_theme_default_about_certifications();
+    }
+
+    $defaults = my_theme_default_about_certifications();
+    if (count($items) < 5) {
+        for ($index = count($items); $index < 5; $index++) {
+            if (!isset($defaults[$index])) break;
+            $items[] = $defaults[$index];
+        }
+    }
+
+    if (count($items) > 5) {
+        $items = array_slice($items, 0, 5);
+    }
+
+    return $items;
+}
+
+function my_theme_build_about_certifications_columns_html($items) {
+    $cards = '';
+    foreach ($items as $item) {
+        $icon = esc_html((string) ($item['icon'] ?? '✅'));
+        $title = esc_html((string) ($item['title'] ?? ''));
+        $description = esc_html((string) ($item['description'] ?? ''));
+
+        $cards .= '<!-- wp:column {"className":"kv-about-cert-item","style":{"spacing":{"padding":{"top":"30px","bottom":"30px","left":"30px","right":"30px"}}}} -->';
+        $cards .= '<div class="wp-block-column kv-about-cert-item" style="padding-top:30px;padding-right:30px;padding-bottom:30px;padding-left:30px">';
+        $cards .= '<!-- wp:paragraph {"align":"center","style":{"typography":{"fontSize":"48px"},"spacing":{"margin":{"bottom":"15px"}}}} -->';
+        $cards .= '<p class="has-text-align-center" style="margin-bottom:15px;font-size:48px">' . $icon . '</p>';
+        $cards .= '<!-- /wp:paragraph -->';
+        $cards .= '<!-- wp:heading {"textAlign":"center","level":4,"style":{"typography":{"fontSize":"20px"},"spacing":{"margin":{"bottom":"10px"}}}} -->';
+        $cards .= '<h4 class="wp-block-heading has-text-align-center" style="margin-bottom:10px;font-size:20px">' . $title . '</h4>';
+        $cards .= '<!-- /wp:heading -->';
+        $cards .= '<!-- wp:paragraph {"align":"center","style":{"color":{"text":"#64748b"}}} -->';
+        $cards .= '<p class="has-text-align-center has-text-color" style="color:#64748b">' . $description . '</p>';
+        $cards .= '<!-- /wp:paragraph -->';
+        $cards .= '</div>';
+        $cards .= '<!-- /wp:column -->';
+    }
+
+    return '<!-- wp:columns {"className":"kv-about-cert-grid","style":{"spacing":{"blockGap":{"left":"30px"}}}} -->'
+        . '<div class="wp-block-columns kv-about-cert-grid">'
+        . $cards
+        . '</div>'
+        . '<!-- /wp:columns -->';
 }
 
 // Replace hardcoded stats numbers in About page block content with DB values
@@ -365,6 +482,16 @@ add_filter('the_content', function($content) {
                 $content = $updated;
             }
         }
+
+        $cert_columns = my_theme_build_about_certifications_columns_html(my_theme_get_about_certifications());
+        $content = preg_replace_callback(
+            '/(<h2[^>]*>\s*Certifications\s*&(?:amp;)?\s*Quality\s*<\/h2>\s*<!-- \/wp:heading -->\s*)(<!-- wp:columns[\s\S]*?<!-- \/wp:columns -->)/i',
+            function($m) use ($cert_columns) {
+                return $m[1] . $cert_columns;
+            },
+            $content,
+            1
+        );
     } catch (Throwable $e) {
         if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG) {
             error_log('[KV_ABOUT_FILTER] ' . $e->getMessage());
@@ -373,6 +500,32 @@ add_filter('the_content', function($content) {
 
     return $content;
 }, 25);
+
+// Replace hardcoded contact phone text in Contact page block content with DB phone + fax values
+add_filter('the_content', function($content) {
+    if (is_admin() || !is_page('contact')) return $content;
+    if (!is_string($content) || $content === '') return $content;
+
+    $phone_text = kv_get_site_phone_raw_display('+66 2 108 8521');
+    if ($phone_text === '') return $content;
+    $fax_text = kv_get_site_fax_raw_display('');
+
+    $phone_block_html = esc_html($phone_text);
+    if ($fax_text !== '') {
+        $phone_block_html .= '<br><span>Fax: ' . esc_html($fax_text) . '</span>';
+    }
+
+    $updated = preg_replace_callback(
+        '/(<h4[^>]*>\s*Phone\s*<\/h4>\s*(?:<!--\s*\/wp:heading\s*-->\s*)?<p[^>]*>)(.*?)(<\/p>)/is',
+        function($m) use ($phone_block_html) {
+            return $m[1] . $phone_block_html . $m[3];
+        },
+        $content,
+        1
+    );
+
+    return is_string($updated) ? $updated : $content;
+}, 26);
 
 // Keep favicon/site-icon URL on current origin (localhost / LAN) when DB stores another host
 add_filter('get_site_icon_url', function($url) {
@@ -886,6 +1039,7 @@ add_action('admin_init', function() {
     register_setting('my_theme_settings', 'about_cta_text',       ['sanitize_callback' => 'sanitize_textarea_field']);
     register_setting('my_theme_settings', 'about_cta_btn_text',   ['sanitize_callback' => 'sanitize_text_field']);
     register_setting('my_theme_settings', 'about_cta_btn_url',    ['sanitize_callback' => 'esc_url_raw']);
+    register_setting('my_theme_settings', 'about_certifications_json', ['sanitize_callback' => 'my_theme_sanitize_about_certifications_json']);
     // Navbar
     register_setting('my_theme_settings', 'nav_logo_alt',          ['sanitize_callback' => 'sanitize_text_field']);
     register_setting('my_theme_settings', 'nav_logo_height',       ['sanitize_callback' => 'absint']);
@@ -1017,8 +1171,8 @@ function my_theme_settings_page() {
     if (!current_user_can('manage_options')) return;
 
     // Sync: save to both wp_options AND theme_mods so get_theme_mod() still works
-    if (isset($_POST['_wpnonce']) && wp_verify_nonce($_POST['_wpnonce'], 'my_theme_settings-options')) {
-        $fields = ['theme_primary_color','theme_accent_color','theme_bg_color','site_phone','site_fax','site_email','site_email_sales','site_address','site_address_full','site_hours_weekday','site_hours_weekend','site_map_embed','site_company_name','site_copyright','site_years_experience','site_total_products','site_countries_served','site_happy_customers','site_years_auto','site_products_auto','site_founded_year','site_logo_url','site_logo_light_url','banner_bg_color','banner_bg_image','banner_bg_video','banner_overlay','banner_fadein_delay','banner_video_start','banner_video_end','about_s1_heading','about_s1_title1','about_s1_text1','about_s1_title2','about_s1_text2','about_s1_text3','about_s1_image','about_s2_title1','about_s2_text1','about_s2_title2','about_s2_text2','about_s2_text3','about_s2_image','about_mission_text','about_vision_text','about_values','about_cta_heading','about_cta_text','about_cta_btn_text','about_cta_btn_url','nav_logo_alt','footer_about_text','footer_quick_links','chat_widget_enabled','chat_line_enabled','chat_line_id','chat_wechat_enabled','chat_wechat_id','chat_wechat_qr_url','chat_whatsapp_enabled','chat_whatsapp_number','social_facebook_url','social_instagram_url','social_linkedin_url','rag_chat_enabled','gallery_interval'];
+    if (isset($_POST['kv_theme_nonce']) && wp_verify_nonce($_POST['kv_theme_nonce'], 'kv_theme_settings_save')) {
+        $fields = ['theme_primary_color','theme_accent_color','theme_bg_color','site_phone','site_fax','site_email','site_email_sales','site_address','site_address_full','site_hours_weekday','site_hours_weekend','site_map_embed','site_company_name','site_copyright','site_years_experience','site_total_products','site_countries_served','site_happy_customers','site_years_auto','site_products_auto','site_founded_year','site_logo_url','site_logo_light_url','banner_bg_color','banner_bg_image','banner_bg_video','banner_overlay','banner_fadein_delay','banner_video_start','banner_video_end','about_s1_heading','about_s1_title1','about_s1_text1','about_s1_title2','about_s1_text2','about_s1_text3','about_s1_image','about_s2_title1','about_s2_text1','about_s2_title2','about_s2_text2','about_s2_text3','about_s2_image','about_mission_text','about_vision_text','about_values','about_cta_heading','about_cta_text','about_cta_btn_text','about_cta_btn_url','about_certifications_json','nav_logo_alt','footer_about_text','footer_quick_links','chat_widget_enabled','chat_line_enabled','chat_line_id','chat_wechat_enabled','chat_wechat_id','chat_wechat_qr_url','chat_whatsapp_enabled','chat_whatsapp_number','social_facebook_url','social_instagram_url','social_linkedin_url','rag_chat_enabled','gallery_interval'];
         foreach ($fields as $key) {
             if (isset($_POST[$key])) {
                 if (in_array($key, ['site_email','site_email_sales'])) {
@@ -1029,6 +1183,8 @@ function my_theme_settings_page() {
                     $val = esc_url_raw($_POST[$key]);
                 } elseif (in_array($key, ['about_s1_text1','about_s1_text2','about_s1_text3','about_s2_text1','about_s2_text2','about_s2_text3','about_mission_text','about_vision_text','about_values','about_cta_text','footer_about_text','footer_quick_links'])) {
                     $val = sanitize_textarea_field($_POST[$key]);
+                } elseif ($key === 'about_certifications_json') {
+                    $val = my_theme_sanitize_about_certifications_json($_POST[$key]);
                 } elseif ($key === 'theme_primary_color') {
                     $val = sanitize_hex_color($_POST[$key]) ?: '#0056d6';
                 } elseif ($key === 'theme_accent_color') {
@@ -1594,13 +1750,13 @@ add_shortcode('kv_about_intro', function () {
     $text3  = get_option('about_s1_text3',  '');
     $image  = get_option('about_s1_image',  '');
     ob_start(); ?>
-    <div style="display:flex;gap:50px;align-items:center;flex-wrap:wrap;">
+    <div class="kv-about-intro-wrap" style="display:flex;gap:50px;align-items:center;flex-wrap:wrap;">
         <div style="flex:1;min-width:280px;">
             <?php if ($title1) : ?><h4 style="margin:0 0 6px;font-size:16px;font-weight:600;color:#1e293b;"><?php echo esc_html($title1); ?></h4><?php endif; ?>
-            <?php if ($text1)  : ?><p style="color:#64748b;margin-bottom:15px;line-height:1.7;"><?php echo esc_html($text1); ?></p><?php endif; ?>
+            <?php if ($text1)  : ?><p class="kv-about-text" style="color:#64748b;margin-bottom:15px;line-height:1.7;"><?php echo esc_html($text1); ?></p><?php endif; ?>
             <?php if ($title2) : ?><h4 style="margin:15px 0 6px;font-size:16px;font-weight:600;color:#1e293b;"><?php echo esc_html($title2); ?></h4><?php endif; ?>
-            <?php if ($text2)  : ?><p style="color:#64748b;margin-bottom:15px;line-height:1.7;"><?php echo esc_html($text2); ?></p><?php endif; ?>
-            <?php if ($text3)  : ?><p style="color:#64748b;margin-bottom:0;line-height:1.7;"><?php echo esc_html($text3); ?></p><?php endif; ?>
+            <?php if ($text2)  : ?><p class="kv-about-text" style="color:#64748b;margin-bottom:15px;line-height:1.7;"><?php echo esc_html($text2); ?></p><?php endif; ?>
+            <?php if ($text3)  : ?><p class="kv-about-text" style="color:#64748b;margin-bottom:0;line-height:1.7;"><?php echo esc_html($text3); ?></p><?php endif; ?>
         </div>
         <?php if ($image) : ?>
         <div style="flex:1;min-width:280px;">
@@ -1626,7 +1782,7 @@ add_shortcode('kv_about_s2', function () {
     $image  = get_option('about_s2_image',  '');
     if (!$title1 && !$text1 && !$title2 && !$text2 && !$text3 && !$image) return '';
     ob_start(); ?>
-    <div style="display:flex;gap:50px;align-items:center;flex-wrap:wrap;">
+    <div class="kv-about-s2-wrap" style="display:flex;gap:50px;align-items:center;flex-wrap:wrap;">
         <?php if ($image) : ?>
         <div style="flex:1;min-width:280px;">
             <img src="<?php echo esc_url($image); ?>" alt="" style="width:100%;border-radius:12px;display:block;">
@@ -1634,10 +1790,10 @@ add_shortcode('kv_about_s2', function () {
         <?php endif; ?>
         <div style="flex:1;min-width:280px;">
             <?php if ($title1) : ?><h4 style="margin:0 0 6px;font-size:16px;font-weight:600;color:#1e293b;"><?php echo esc_html($title1); ?></h4><?php endif; ?>
-            <?php if ($text1)  : ?><p style="color:#64748b;margin-bottom:15px;line-height:1.7;"><?php echo esc_html($text1); ?></p><?php endif; ?>
+            <?php if ($text1)  : ?><p class="kv-about-text" style="color:#64748b;margin-bottom:15px;line-height:1.7;"><?php echo esc_html($text1); ?></p><?php endif; ?>
             <?php if ($title2) : ?><h4 style="margin:15px 0 6px;font-size:16px;font-weight:600;color:#1e293b;"><?php echo esc_html($title2); ?></h4><?php endif; ?>
-            <?php if ($text2)  : ?><p style="color:#64748b;margin-bottom:15px;line-height:1.7;"><?php echo esc_html($text2); ?></p><?php endif; ?>
-            <?php if ($text3)  : ?><p style="color:#64748b;margin-bottom:0;line-height:1.7;"><?php echo esc_html($text3); ?></p><?php endif; ?>
+            <?php if ($text2)  : ?><p class="kv-about-text" style="color:#64748b;margin-bottom:15px;line-height:1.7;"><?php echo esc_html($text2); ?></p><?php endif; ?>
+            <?php if ($text3)  : ?><p class="kv-about-text" style="color:#64748b;margin-bottom:0;line-height:1.7;"><?php echo esc_html($text3); ?></p><?php endif; ?>
         </div>
     </div>
     <?php
@@ -5009,7 +5165,7 @@ add_action('init', function() {
 // REST API for Site-wide Options (used by block editor panels)
 add_action('rest_api_init', function() {
     $s_text = array(
-        'site_phone','site_fax','site_email','site_address','site_company_name',
+        'site_phone','site_fax','site_email','site_email_sales','site_address','site_company_name',
         'site_copyright','site_hours_weekday','site_hours_weekend',
         'chat_line_enabled','chat_line_id',
         'chat_wechat_enabled','chat_wechat_id',
@@ -5034,7 +5190,7 @@ add_action('rest_api_init', function() {
     $s_color = array('theme_primary_color','theme_accent_color','theme_bg_color','banner_bg_color',
         'nav_bg_color','nav_text_color','nav_hover_color','nav_active_color','nav_cta_bg','nav_cta_text_color',
     );
-    $s_ta    = array('site_address_full','footer_about_text','footer_quick_links','nav_custom_items');
+    $s_ta    = array('site_address_full','footer_about_text','footer_quick_links','nav_custom_items','about_certifications_json');
 
     register_rest_route('kv/v1', '/site-options', array(
         array(
@@ -5057,13 +5213,22 @@ add_action('rest_api_init', function() {
                     if (!isset($body[$k])) continue;
                     if (in_array($k, $s_float, true)) {
                         update_option($k, max(0, (float) $body[$k]));
+                    } elseif (in_array($k, ['site_email','site_email_sales'], true)) {
+                        update_option($k, sanitize_email($body[$k]));
                     } else {
                         update_option($k, sanitize_text_field($body[$k]));
                     }
                 }
                 foreach ($s_url  as $k) { if (isset($body[$k])) update_option($k, esc_url_raw($body[$k])); }
                 foreach ($s_color as $k) { if (isset($body[$k])) update_option($k, sanitize_hex_color($body[$k]) ?? ''); }
-                foreach ($s_ta   as $k) { if (isset($body[$k])) update_option($k, sanitize_textarea_field($body[$k])); }
+                foreach ($s_ta   as $k) {
+                    if (!isset($body[$k])) continue;
+                    if ($k === 'about_certifications_json') {
+                        update_option($k, my_theme_sanitize_about_certifications_json($body[$k]));
+                    } else {
+                        update_option($k, sanitize_textarea_field($body[$k]));
+                    }
+                }
                 $primary_sync = sanitize_hex_color(get_option('theme_primary_color', '#0056d6')) ?: '#0056d6';
                 update_option('banner_bg_color', $primary_sync);
                 return rest_ensure_response(array('success' => true));
@@ -5840,8 +6005,8 @@ function kv_render_product_categories_block($attributes = []) {
                     </ul>
                     <?php endif; ?>
 
-                    <div style="margin-top:auto;">
-                        <a href="<?php echo esc_url($url); ?>" class="btn btn-outline-primary" style="border:2px solid var(--theme-accent);color:var(--theme-accent);padding:8px 20px;border-radius:6px;text-decoration:none;display:inline-block;">
+                    <div class="kv-cat-card-btn-wrap" style="margin-top:auto;">
+                        <a href="<?php echo esc_url($url); ?>" class="btn btn-outline-primary kv-cat-card-btn" style="border:2px solid var(--theme-accent);color:var(--theme-accent);padding:8px 20px;border-radius:6px;text-decoration:none;display:inline-block;">
                             <?php echo esc_html($button_text); ?>
                         </a>
                     </div>
@@ -5868,6 +6033,8 @@ function kv_render_product_categories_block($attributes = []) {
     @media (max-width: 575px) {
         .kv-cat-card { max-width:100% !important; min-width:100% !important; flex-basis:100% !important; }
         .cat-cards-row { gap:1rem; }
+        .kv-cat-card-btn-wrap { display:flex; justify-content:center; align-items:center; text-align:center; }
+        .kv-cat-card-btn { display:inline-flex !important; justify-content:center; align-items:center; }
     }
     </style>
 

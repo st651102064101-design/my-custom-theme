@@ -40,6 +40,7 @@ if ($products_auto === '1') {
 $countries       = get_option('site_countries_served', 50);
 $happy_cust      = get_option('site_happy_customers', 1000);
 $ab_values       = array_filter(array_map('trim', explode("\n", $ab_values_raw)));
+$ab_cert_items   = function_exists('my_theme_get_about_certifications') ? my_theme_get_about_certifications() : array();
 ?>
 <!-- wp:cover {"overlayColor":"primary","align":"full","style":{"spacing":{"padding":{"top":"60px","bottom":"60px"}}}} -->
 <div class="wp-block-cover alignfull" style="padding-top:60px;padding-bottom:60px">
@@ -207,71 +208,25 @@ $ab_values       = array_filter(array_map('trim', explode("\n", $ab_values_raw))
     <h2 class="wp-block-heading has-text-align-center" style="margin-bottom:50px;font-size:36px;font-weight:700">Certifications &amp; Quality</h2>
     <!-- /wp:heading -->
 
-    <!-- wp:columns {"style":{"spacing":{"blockGap":{"left":"30px"}}}} -->
-    <div class="wp-block-columns">
-        <!-- wp:column {"style":{"spacing":{"padding":{"top":"30px","bottom":"30px","left":"30px","right":"30px"}}}} -->
-        <div class="wp-block-column" style="padding-top:30px;padding-right:30px;padding-bottom:30px;padding-left:30px">
+    <!-- wp:columns {"className":"kv-about-cert-grid","style":{"spacing":{"blockGap":{"left":"30px"}}}} -->
+    <div class="wp-block-columns kv-about-cert-grid">
+        <?php foreach ($ab_cert_items as $cert) : ?>
+        <!-- wp:column {"className":"kv-about-cert-item","style":{"spacing":{"padding":{"top":"30px","bottom":"30px","left":"30px","right":"30px"}}}} -->
+        <div class="wp-block-column kv-about-cert-item" style="padding-top:30px;padding-right:30px;padding-bottom:30px;padding-left:30px">
             <!-- wp:paragraph {"align":"center","style":{"typography":{"fontSize":"48px"},"spacing":{"margin":{"bottom":"15px"}}}} -->
-            <p class="has-text-align-center" style="margin-bottom:15px;font-size:48px">🏆</p>
+            <p class="has-text-align-center" style="margin-bottom:15px;font-size:48px"><?php echo esc_html($cert['icon'] ?? '✅'); ?></p>
             <!-- /wp:paragraph -->
 
             <!-- wp:heading {"textAlign":"center","level":4,"style":{"typography":{"fontSize":"20px"},"spacing":{"margin":{"bottom":"10px"}}}} -->
-            <h4 class="wp-block-heading has-text-align-center" style="margin-bottom:10px;font-size:20px">ISO 9001:2015</h4>
+            <h4 class="wp-block-heading has-text-align-center" style="margin-bottom:10px;font-size:20px"><?php echo esc_html($cert['title'] ?? ''); ?></h4>
             <!-- /wp:heading -->
 
             <!-- wp:paragraph {"align":"center","style":{"color":{"text":"#64748b"}}} -->
-            <p class="has-text-align-center has-text-color" style="color:#64748b">Quality Management System Certified</p>
+            <p class="has-text-align-center has-text-color" style="color:#64748b"><?php echo esc_html($cert['description'] ?? ''); ?></p>
             <!-- /wp:paragraph -->
         </div>
         <!-- /wp:column -->
-
-        <!-- wp:column {"style":{"spacing":{"padding":{"top":"30px","bottom":"30px","left":"30px","right":"30px"}}}} -->
-        <div class="wp-block-column" style="padding-top:30px;padding-right:30px;padding-bottom:30px;padding-left:30px">
-            <!-- wp:paragraph {"align":"center","style":{"typography":{"fontSize":"48px"},"spacing":{"margin":{"bottom":"15px"}}}} -->
-            <p class="has-text-align-center" style="margin-bottom:15px;font-size:48px">🌿</p>
-            <!-- /wp:paragraph -->
-
-            <!-- wp:heading {"textAlign":"center","level":4,"style":{"typography":{"fontSize":"20px"},"spacing":{"margin":{"bottom":"10px"}}}} -->
-            <h4 class="wp-block-heading has-text-align-center" style="margin-bottom:10px;font-size:20px">ISO 14001:2015</h4>
-            <!-- /wp:heading -->
-
-            <!-- wp:paragraph {"align":"center","style":{"color":{"text":"#64748b"}}} -->
-            <p class="has-text-align-center has-text-color" style="color:#64748b">Environmental Management Certified</p>
-            <!-- /wp:paragraph -->
-        </div>
-        <!-- /wp:column -->
-
-        <!-- wp:column {"style":{"spacing":{"padding":{"top":"30px","bottom":"30px","left":"30px","right":"30px"}}}} -->
-        <div class="wp-block-column" style="padding-top:30px;padding-right:30px;padding-bottom:30px;padding-left:30px">
-            <!-- wp:paragraph {"align":"center","style":{"typography":{"fontSize":"48px"},"spacing":{"margin":{"bottom":"15px"}}}} -->
-            <p class="has-text-align-center" style="margin-bottom:15px;font-size:48px">🇹🇭</p>
-            <!-- /wp:paragraph -->
-
-            <!-- wp:heading {"textAlign":"center","level":4,"style":{"typography":{"fontSize":"20px"},"spacing":{"margin":{"bottom":"10px"}}}} -->
-            <h4 class="wp-block-heading has-text-align-center" style="margin-bottom:10px;font-size:20px">BOI Promoted</h4>
-            <!-- /wp:heading -->
-
-            <!-- wp:paragraph {"align":"center","style":{"color":{"text":"#64748b"}}} -->
-            <p class="has-text-align-center has-text-color" style="color:#64748b">Thailand Board of Investment</p>
-            <!-- /wp:paragraph -->
-        </div>
-        <!-- /wp:column -->
-
-        <!-- wp:column {"style":{"spacing":{"padding":{"top":"30px","bottom":"30px","left":"30px","right":"30px"}}}} -->
-        <div class="wp-block-column" style="padding-top:30px;padding-right:30px;padding-bottom:30px;padding-left:30px">
-            <!-- wp:paragraph {"align":"center","style":{"typography":{"fontSize":"48px"},"spacing":{"margin":{"bottom":"15px"}}}} -->
-            <p class="has-text-align-center" style="margin-bottom:15px;font-size:48px">✅</p>
-            <!-- /wp:paragraph -->
-
-            <!-- wp:heading {"textAlign":"center","level":4,"style":{"typography":{"fontSize":"20px"},"spacing":{"margin":{"bottom":"10px"}}}} -->
-            <h4 class="wp-block-heading has-text-align-center" style="margin-bottom:10px;font-size:20px">RoHS3 &amp; IPC-A-610</h4>
-            <!-- /wp:heading -->
-
-            <!-- wp:paragraph {"align":"center","style":{"color":{"text":"#64748b"}}} -->
-            <p class="has-text-align-center has-text-color" style="color:#64748b">Conflict Free Compliant</p>
-            <!-- /wp:paragraph -->
-        </div>
-        <!-- /wp:column -->
+        <?php endforeach; ?>
     </div>
     <!-- /wp:columns -->
 </div>

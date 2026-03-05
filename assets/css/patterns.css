@@ -569,6 +569,16 @@ body {
     color: var(--color-gray-800);
 }
 
+.kv-about-cert-grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 30px !important;
+}
+
+.kv-about-cert-grid > .kv-about-cert-item {
+    margin: 0 !important;
+}
+
 /* ============================================
    FEATURES GRID
    ============================================ */
@@ -744,10 +754,48 @@ body {
         flex-direction: column;
         align-items: center;
     }
+
+    .wp-block-buttons.is-layout-flex {
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+        text-align: center;
+        width: 100%;
+    }
+
+    .wp-block-buttons.is-layout-flex > .wp-block-button {
+        display: flex;
+        justify-content: center;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .wp-block-buttons.is-layout-flex > .wp-block-button > .wp-block-button__link {
+        justify-content: center;
+        text-align: center;
+        width: 100%;
+    }
     
     .wp-block-button {
         width: 100%;
         max-width: 300px;
+    }
+
+    .kv-about-intro-wrap .kv-about-text,
+    .kv-about-s2-wrap .kv-about-text {
+        margin-left: 12px;
+        margin-right: 12px;
+    }
+
+    .kv-about-cert-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px !important;
+    }
+}
+
+@media (max-width: 575px) {
+    .kv-about-cert-grid {
+        grid-template-columns: 1fr;
     }
 }
 

@@ -58,8 +58,10 @@
             <div class="col-sm-6 col-lg-3">
                 <h5 class="fw-semibold mb-3"><?php echo esc_html(get_option('footer_col4_title','Contact Info')); ?></h5>
                 <?php
-                $footer_phone_raw   = get_option('site_phone', get_theme_mod('site_phone', ''));
-                $footer_phone_label = kv_format_phone_th($footer_phone_raw);
+                $footer_phone_raw   = function_exists('kv_get_site_phone_raw_display')
+                    ? kv_get_site_phone_raw_display('+66 2 108 8521')
+                    : trim((string) get_option('site_phone', get_theme_mod('site_phone', '+66 2 108 8521')));
+                $footer_phone_label = $footer_phone_raw !== '' ? $footer_phone_raw : '+66 2 108 8521';
                 $footer_phone_href  = preg_replace('/[^0-9+]/', '', (string) $footer_phone_raw);
                 $footer_email       = get_option('site_email', get_theme_mod('site_email', 'info@company.com'));
                 ?>

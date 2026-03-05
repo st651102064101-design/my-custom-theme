@@ -217,6 +217,52 @@ html {
     opacity: 1;
 }
 
+@media (max-width: 768px) {
+    .footer-dark .container {
+        text-align: center;
+    }
+
+    .footer-dark .row.g-4.mb-4 {
+        justify-content: center;
+    }
+
+    .footer-dark .row > [class*="col-"] {
+        text-align: center !important;
+    }
+
+    .footer-dark ul {
+        padding-left: 0 !important;
+        margin-left: auto;
+        margin-right: auto;
+        text-align: center !important;
+    }
+
+    .footer-dark ul li {
+        text-align: center !important;
+    }
+
+    .footer-dark .row > [class*="col-"] > div[style*="display:flex"][style*="margin-top:18px"] {
+        justify-content: center !important;
+        align-items: center !important;
+        width: 100%;
+    }
+
+    .footer-dark .row > [class*="col-"] > div[style*="display:flex"][style*="margin-top:18px"] > div {
+        width: 100%;
+    }
+
+    .footer-dark .row > [class*="col-"] > div[style*="display:flex"][style*="margin-top:18px"] > div > div[style*="display:flex"][style*="margin-bottom:12px"],
+    .footer-dark .row > [class*="col-"] > div[style*="display:flex"][style*="margin-top:18px"] > div > div[style*="display:flex"][style*="gap:12px"] {
+        justify-content: center !important;
+        align-items: center !important;
+    }
+
+    .footer-dark .row > [class*="col-"] > div[style*="display:flex"][style*="margin-top:18px"] a[style*="display:inline-flex"] {
+        margin-left: auto;
+        margin-right: auto;
+    }
+}
+
 /* ============================================
    SINGLE PRODUCT PAGE — ตัดขอบเขต Block + margin-top
    ============================================ */

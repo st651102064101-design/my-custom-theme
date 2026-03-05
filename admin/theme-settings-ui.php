@@ -58,6 +58,8 @@ $about_cta_heading    = get_option('about_cta_heading',  'Partner With Us');
 $about_cta_text       = get_option('about_cta_text',     '');
 $about_cta_btn_text   = get_option('about_cta_btn_text', 'Contact Us');
 $about_cta_btn_url    = get_option('about_cta_btn_url',  '/contact');
+$about_certifications_items = function_exists('my_theme_get_about_certifications') ? my_theme_get_about_certifications() : [];
+$about_certifications_json = get_option('about_certifications_json', wp_json_encode($about_certifications_items, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
 $chat_widget_on       = get_option('chat_widget_enabled','1');
 $chat_line_on         = get_option('chat_line_enabled',  '1');
 $chat_line_id         = get_option('chat_line_id',       'kriangkrai2042');
@@ -202,6 +204,13 @@ $be_all_patterns = function_exists('kv_be_get_all_patterns') ? kv_be_get_all_pat
 .ts-menu-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--ts-border);border-radius:7px;margin-bottom:8px;background:#fafafa;}
 .ts-menu-item input[type=text]{flex:1;border:1px solid var(--ts-border);border-radius:5px;padding:5px 8px;font-size:12.5px;}
 .ts-menu-item .menu-chk{flex-shrink:0;}
+.ts-cert-list{display:flex;flex-direction:column;gap:10px;}
+.ts-cert-item{border:1px solid var(--ts-border);border-radius:8px;padding:10px;background:#fafafa;}
+.ts-cert-grid{display:grid;grid-template-columns:90px 1fr 1fr auto;gap:8px;align-items:end;}
+.ts-cert-grid input{border:1px solid var(--ts-border);border-radius:6px;padding:7px 9px;font-size:12.5px;width:100%;}
+.ts-cert-grid .ts-cert-del{height:34px;min-width:34px;border:none;background:#fee2e2;color:#dc2626;border-radius:6px;cursor:pointer;font-weight:700;}
+.ts-cert-grid .ts-cert-del:hover{background:#fecaca;}
+.ts-cert-limit{font-size:12px;color:var(--ts-muted);}
 /* ─── Toast ────────────────────────────────────── */
 #ts-toast{position:fixed;bottom:28px;right:28px;z-index:99999;display:flex;flex-direction:column;gap:8px;pointer-events:none;}
 .ts-toast-msg{background:#1e293b;color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;opacity:0;transform:translateY(10px);transition:opacity .25s,transform .25s;display:flex;align-items:center;gap:8px;pointer-events:auto;}
@@ -216,6 +225,7 @@ $be_all_patterns = function_exists('kv_be_get_all_patterns') ? kv_be_get_all_pat
 /* ─── Responsive ───────────────────────────────── */
 @media(max-width:900px){.ts-body{flex-direction:column;}.ts-sidebar{width:100%;flex-direction:row;overflow-x:auto;border-right:none;border-bottom:1px solid var(--ts-border);}.ts-content{padding:20px 16px;}}
 @media(max-width:900px){.ts-nav-preview iframe{height:320px;}}
+@media(max-width:900px){.ts-cert-grid{grid-template-columns:1fr;}}
 /* ─── Image picker row ─────────────────────────── */
 .ts-img-row{display:flex;gap:10px;align-items:flex-start;}
 .ts-img-row input{flex:1;}
@@ -307,6 +317,7 @@ $be_all_patterns = function_exists('kv_be_get_all_patterns') ? kv_be_get_all_pat
       <button class="ts-nav-item" data-tab="appearance"><span class="ico">🎨</span> ธีมสี & รูปลักษณ์</button>
       <button class="ts-nav-item" data-tab="contact"><span class="ico">📞</span> ข้อมูลติดต่อ</button>
       <button class="ts-nav-item" data-tab="navbar"><span class="ico">🔗</span> Navbar</button>
+      <button class="ts-nav-item" data-tab="about"><span class="ico">📘</span> About</button>
 
       <div class="ts-nav-sep"></div>
       <button class="ts-nav-item" data-tab="chat"><span class="ico">🤖</span> AI Search</button>
@@ -831,6 +842,17 @@ $be_all_patterns = function_exists('kv_be_get_all_patterns') ? kv_be_get_all_pat
             </div>
           </div>
 
+          <div class="ts-card">
+            <div class="ts-card-title">✅ Certifications &amp; Quality</div>
+            <div class="ts-card-desc">เพิ่ม/ลบ/แก้ไขรายการได้ง่าย ๆ สูงสุด 5 รายการ (แสดงผลแบบ Responsive อัตโนมัติ)</div>
+            <input type="hidden" id="about_certifications_json" name="about_certifications_json" value="<?php echo esc_attr($about_certifications_json); ?>">
+            <div id="ts-cert-list" class="ts-cert-list"></div>
+            <div style="display:flex;align-items:center;gap:10px;margin-top:10px;">
+              <button type="button" class="be-add-btn" id="ts-cert-add-btn">+ เพิ่มรายการ</button>
+              <span class="ts-cert-limit" id="ts-cert-limit-note">สูงสุด 5 รายการ</span>
+            </div>
+          </div>
+
         </div>
         <!-- ═══ END TAB ABOUT ═══ -->
 
@@ -1092,6 +1114,7 @@ $be_all_patterns = function_exists('kv_be_get_all_patterns') ? kv_be_get_all_pat
       window._beDefSizes       = <?php echo wp_json_encode($be_def_sizes); ?>;
       window._beEffColors      = <?php echo wp_json_encode($be_eff_colors); ?>;
       window._beEffSizes       = <?php echo wp_json_encode($be_eff_sizes); ?>;
+      window._aboutCertItems   = <?php echo wp_json_encode($about_certifications_items, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
       </script>
 
     </div><!-- /.ts-content -->
@@ -1356,6 +1379,86 @@ if (wechatQrBtn) wechatQrBtn.addEventListener('click', () => wpPick('chat_wechat
 
 /* ── Global helper for About image pickers ── */
 window.aboutPickImage = function(fieldId, previewId) { wpPick(fieldId, previewId); };
+
+const certListEl = document.getElementById('ts-cert-list');
+const certHiddenEl = document.getElementById('about_certifications_json');
+const certAddBtn = document.getElementById('ts-cert-add-btn');
+const certLimitNote = document.getElementById('ts-cert-limit-note');
+
+if (certListEl && certHiddenEl && certAddBtn) {
+  const certFallback = [
+    { icon: '🏆', title: 'ISO 9001:2015', description: 'Quality Management System Certified' },
+    { icon: '🌿', title: 'ISO 14001:2015', description: 'Environmental Management Certified' },
+    { icon: '🇹🇭', title: 'BOI Promoted', description: 'Thailand Board of Investment' },
+    { icon: '✅', title: 'RoHS3 & IPC-A-610', description: 'Conflict Free Compliant' },
+    { icon: '⚙️', title: 'Custom Manufacturing', description: 'Design-to-production support' }
+  ];
+
+  let certItems = Array.isArray(window._aboutCertItems) && window._aboutCertItems.length
+    ? window._aboutCertItems.slice(0, 5)
+    : certFallback.slice(0, 5);
+
+  function certClean(item) {
+    return {
+      icon: String(item?.icon || '✅').trim(),
+      title: String(item?.title || '').trim(),
+      description: String(item?.description || '').trim()
+    };
+  }
+
+  function syncCertHidden(emitChange) {
+    certItems = certItems.map(certClean).slice(0, 5);
+    certHiddenEl.value = JSON.stringify(certItems);
+    certAddBtn.disabled = certItems.length >= 5;
+    if (certLimitNote) certLimitNote.textContent = 'สูงสุด 5 รายการ (' + certItems.length + '/5)';
+    if (emitChange) certHiddenEl.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  function renderCertItems() {
+    certListEl.innerHTML = '';
+    certItems.forEach((item, index) => {
+      const row = document.createElement('div');
+      row.className = 'ts-cert-item';
+      row.innerHTML =
+        '<div class="ts-cert-grid">' +
+          '<div><label>Icon</label><input type="text" maxlength="8" value="' + escHtml(item.icon || '') + '" data-field="icon"></div>' +
+          '<div><label>Title</label><input type="text" value="' + escHtml(item.title || '') + '" data-field="title"></div>' +
+          '<div><label>Description</label><input type="text" value="' + escHtml(item.description || '') + '" data-field="description"></div>' +
+          '<button type="button" class="ts-cert-del" title="ลบรายการ">✕</button>' +
+        '</div>';
+
+      row.querySelectorAll('input[data-field]').forEach((input) => {
+        input.addEventListener('input', () => {
+          certItems[index][input.dataset.field] = input.value;
+          syncCertHidden(false);
+        });
+        input.addEventListener('change', () => {
+          certItems[index][input.dataset.field] = input.value;
+          syncCertHidden(true);
+        });
+      });
+
+      const delBtn = row.querySelector('.ts-cert-del');
+      delBtn.addEventListener('click', () => {
+        certItems.splice(index, 1);
+        renderCertItems();
+        syncCertHidden(true);
+      });
+
+      certListEl.appendChild(row);
+    });
+  }
+
+  certAddBtn.addEventListener('click', () => {
+    if (certItems.length >= 5) return;
+    certItems.push({ icon: '✅', title: '', description: '' });
+    renderCertItems();
+    syncCertHidden(true);
+  });
+
+  renderCertItems();
+  syncCertHidden(false);
+}
 
 /* ── Toast Notifications ───────────────────── */
 const toastContainer = document.getElementById('ts-toast');

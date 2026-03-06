@@ -195,6 +195,231 @@ if (!function_exists('str_ends_with')) {
     }
 }
 
+if (!function_exists('kv_theme_get_smtp_config')) {
+    function kv_theme_get_smtp_config() {
+        $get = static function($key, $default = '') {
+            $const_keys = ['KV_SMTP_' . $key, 'SMTP_' . $key];
+            foreach ($const_keys as $const_key) {
+                if (defined($const_key)) {
+                    return constant($const_key);
+                }
+            }
+
+            $env_keys = ['KV_SMTP_' . $key, 'SMTP_' . $key];
+            foreach ($env_keys as $env_key) {
+                $value = getenv($env_key);
+                if ($value !== false && $value !== '') {
+                    return $value;
+                }
+            }
+
+            $option_key = 'kv_smtp_' . strtolower($key);
+            $option_value = get_option($option_key, null);
+            if ($option_value !== null && $option_value !== '') {
+                return $option_value;
+            }
+
+            return $default;
+        };
+
+        $host = trim((string) $get('HOST', ''));
+        $user = trim((string) $get('USER', ''));
+        $pass = (string) $get('PASS', '');
+        $port = (int) $get('PORT', 587);
+        $encryption = strtolower(trim((string) $get('ENCRYPTION', 'tls')));
+        if (!in_array($encryption, ['', 'tls', 'ssl'], true)) {
+            $encryption = 'tls';
+        }
+
+        $auth_raw = strtolower(trim((string) $get('AUTH', '1')));
+        $auth = !in_array($auth_raw, ['0', 'false', 'no', 'off'], true);
+
+        $from = sanitize_email((string) $get('FROM', ''));
+        $from_name = sanitize_text_field((string) $get('FROM_NAME', get_bloginfo('name')));
+
+        return [
+            'host'       => $host,
+            'user'       => $user,
+            'pass'       => $pass,
+            'port'       => ($port > 0 ? $port : 587),
+            'encryption' => $encryption,
+            'auth'       => $auth,
+            'from'       => $from,
+            'from_name'  => $from_name,
+            'enabled'    => ($host !== '' && $user !== '' && $pass !== ''),
+        ];
+    }
+}
+
+if (!function_exists('kv_theme_has_active_smtp_mailer')) {
+    function kv_theme_has_active_smtp_mailer() {
+        if (defined('WPMS_ON') || class_exists('WPMailSMTP\\WP')) {
+            return true;
+        }
+        if (class_exists('PostSMTP\\Postman') || class_exists('FluentMail\\App\\Services\\Mailer\\Handler')) {
+            return true;
+        }
+        return false;
+    }
+}
+
+if (!function_exists('kv_theme_allow_theme_smtp_override')) {
+    function kv_theme_allow_theme_smtp_override() {
+        if (defined('KV_THEME_FORCE_SMTP')) {
+            return (bool) KV_THEME_FORCE_SMTP;
+        }
+
+        $force = get_option('kv_smtp_force_override', '0');
+        return $force === '1';
+    }
+}
+
+if (!function_exists('kv_theme_is_non_routable_email')) {
+    function kv_theme_is_non_routable_email($email) {
+        $email = sanitize_email((string) $email);
+        if (!is_email($email)) {
+            return true;
+        }
+
+        $parts = explode('@', $email);
+        $domain = strtolower((string) end($parts));
+        if ($domain === '') {
+            return true;
+        }
+
+        if (
+            str_ends_with($domain, '.local') ||
+            str_ends_with($domain, '.localhost') ||
+            $domain === 'localhost' ||
+            str_ends_with($domain, '.invalid') ||
+            str_ends_with($domain, '.test') ||
+            str_ends_with($domain, '.example')
+        ) {
+            return true;
+        }
+
+        return false;
+    }
+}
+
+if (!function_exists('kv_theme_smtp_probe')) {
+    function kv_theme_smtp_probe($host, $port, $timeout = 8) {
+        $host = trim((string) $host);
+        $port = (int) $port;
+        $timeout = (int) $timeout;
+
+        if ($host === '' || $port <= 0) {
+            return [
+                'ok' => false,
+                'message' => 'SMTP host/port ไม่ถูกต้อง',
+                'resolved_ip' => '',
+                'errno' => 0,
+                'errstr' => '',
+            ];
+        }
+
+        $resolved_ip = gethostbyname($host);
+        $dns_ok = ($resolved_ip !== $host) || filter_var($host, FILTER_VALIDATE_IP);
+        if (!$dns_ok) {
+            return [
+                'ok' => false,
+                'message' => 'DNS resolve ไม่สำเร็จสำหรับ SMTP host',
+                'resolved_ip' => '',
+                'errno' => 0,
+                'errstr' => 'DNS lookup failed',
+            ];
+        }
+
+        $errno = 0;
+        $errstr = '';
+        $target = 'tcp://' . $host . ':' . $port;
+        $conn = @stream_socket_client($target, $errno, $errstr, $timeout, STREAM_CLIENT_CONNECT);
+
+        if (!is_resource($conn)) {
+            return [
+                'ok' => false,
+                'message' => 'เชื่อมต่อพอร์ต SMTP ไม่สำเร็จ',
+                'resolved_ip' => (string) $resolved_ip,
+                'errno' => (int) $errno,
+                'errstr' => (string) $errstr,
+            ];
+        }
+
+        @fclose($conn);
+        return [
+            'ok' => true,
+            'message' => 'เชื่อมต่อ SMTP host/port ได้',
+            'resolved_ip' => (string) $resolved_ip,
+            'errno' => 0,
+            'errstr' => '',
+        ];
+    }
+}
+
+add_action('phpmailer_init', function($phpmailer) {
+    $smtp = kv_theme_get_smtp_config();
+    $has_plugin_mailer = kv_theme_has_active_smtp_mailer();
+    $allow_theme_override = kv_theme_allow_theme_smtp_override();
+
+    if ($has_plugin_mailer && !$allow_theme_override) {
+        return;
+    }
+
+    if (empty($smtp['enabled'])) {
+        return;
+    }
+
+    $phpmailer->Mailer = 'smtp';
+
+    $phpmailer->isSMTP();
+    $phpmailer->Host = $smtp['host'];
+    $phpmailer->Port = (int) $smtp['port'];
+    $phpmailer->SMTPAuth = (bool) $smtp['auth'];
+    $phpmailer->Username = $smtp['user'];
+    $phpmailer->Password = $smtp['pass'];
+    $phpmailer->SMTPAutoTLS = true;
+
+    if ($smtp['encryption'] !== '') {
+        $phpmailer->SMTPSecure = $smtp['encryption'];
+    }
+
+    if (is_email($smtp['from'])) {
+        $phpmailer->setFrom($smtp['from'], $smtp['from_name'], false);
+    }
+}, 20, 1);
+
+add_filter('wp_mail_from', function($from) {
+    $smtp = kv_theme_get_smtp_config();
+    $has_plugin_mailer = kv_theme_has_active_smtp_mailer();
+    $allow_theme_override = kv_theme_allow_theme_smtp_override();
+
+    if ($has_plugin_mailer && !$allow_theme_override) {
+        return $from;
+    }
+
+    if (!empty($smtp['enabled']) && is_email($smtp['from'])) {
+        return $smtp['from'];
+    }
+
+    return is_email($smtp['from']) ? $smtp['from'] : $from;
+}, 20, 1);
+
+add_filter('wp_mail_from_name', function($from_name) {
+    $smtp = kv_theme_get_smtp_config();
+    $has_plugin_mailer = kv_theme_has_active_smtp_mailer();
+    $allow_theme_override = kv_theme_allow_theme_smtp_override();
+
+    if ($has_plugin_mailer && !$allow_theme_override) {
+        return $from_name;
+    }
+
+    if (!empty($smtp['enabled']) && !empty($smtp['from_name'])) {
+        return $smtp['from_name'];
+    }
+
+    return !empty($smtp['from_name']) ? $smtp['from_name'] : $from_name;
+}, 20, 1);
+
 /**
  * Rebase a stored URL to the current request's origin.
  * Replaces the scheme+host of any stored URL with home_url()'s scheme+host
@@ -549,6 +774,129 @@ add_action('wp_head', function() {
 // ============================================
 if (is_admin()) {
     require_once get_template_directory() . '/admin/product-manager.php';
+}
+
+// Front-end fallback for Product Manager spec helpers
+// (admin/product-manager.php is loaded only in wp-admin)
+if (!is_admin() && !function_exists('pm_get_all_spec_fields')) {
+    function pm_get_all_spec_fields(): array {
+        $builtin = [
+            ['key' => 'pd_inductance',    'label' => 'Inductance'],
+            ['key' => 'pd_current_rating','label' => 'Current Rating'],
+            ['key' => 'pd_impedance',     'label' => 'Impedance @ 100MHz'],
+            ['key' => 'pd_voltage',       'label' => 'Voltage Rating'],
+            ['key' => 'pd_frequency',     'label' => 'Frequency Range'],
+            ['key' => 'pd_dcr',           'label' => 'DC Resistance'],
+            ['key' => 'pd_insulation',    'label' => 'Insulation Resistance'],
+            ['key' => 'pd_hipot',         'label' => 'Hi-Pot (Dielectric)'],
+            ['key' => 'pd_turns_ratio',   'label' => 'Turns Ratio'],
+            ['key' => 'pd_power_rating',  'label' => 'Power Rating'],
+            ['key' => 'pd_dimensions',    'label' => 'Dimensions (L x W x H)'],
+            ['key' => 'pd_weight',        'label' => 'Weight'],
+            ['key' => 'pd_pin_config',    'label' => 'Pin Configuration'],
+            ['key' => 'pd_mount_type',    'label' => 'Mounting Type'],
+            ['key' => 'pd_core_material', 'label' => 'Core Material'],
+            ['key' => 'pd_land_pattern',  'label' => 'Land Pattern'],
+            ['key' => 'pd_winding',       'label' => 'Winding Construction'],
+            ['key' => 'pd_core_shape',    'label' => 'Core Shape'],
+            ['key' => 'pd_core_size',     'label' => 'Core Size'],
+            ['key' => 'pd_bobbin_pin',    'label' => 'Bobbin Pin Type'],
+            ['key' => 'pd_wire_type',     'label' => 'Wire Type'],
+            ['key' => 'pd_wire_size',     'label' => 'Wire Size'],
+            ['key' => 'pd_size_range',    'label' => 'Size Range / Form Factor'],
+            ['key' => 'pd_output_range',  'label' => 'Output Range'],
+            ['key' => 'pd_temp_range',    'label' => 'Operating Temperatures'],
+            ['key' => 'pd_package_type',  'label' => 'Packaging Options'],
+            ['key' => 'pd_packing_qty',   'label' => 'Packing Quantity'],
+            ['key' => 'pd_standards',     'label' => 'Standards'],
+            ['key' => 'pd_compliance',    'label' => 'Environmental Compliance'],
+            ['key' => 'pd_safety_certs',  'label' => 'Safety Certifications'],
+            ['key' => 'pd_storage_conditions', 'label' => 'Storage Conditions'],
+            ['key' => 'pd_msl',           'label' => 'Moisture Sensitivity Level'],
+        ];
+
+        $disabled = get_option('spec_disabled_builtin_fields', []);
+        if (!is_array($disabled)) $disabled = [];
+        $disabled = array_values(array_unique(array_map('sanitize_key', $disabled)));
+
+        $builtin_active = array_values(array_filter($builtin, function($f) use ($disabled) {
+            return !in_array($f['key'], $disabled, true);
+        }));
+
+        $custom_raw = get_option('spec_custom_fields', []);
+        if (!is_array($custom_raw)) $custom_raw = [];
+        $custom = [];
+        foreach ($custom_raw as $f) {
+            $key = sanitize_key($f['key'] ?? '');
+            $label = sanitize_text_field($f['label'] ?? '');
+            if ($key && $label) {
+                $custom[] = ['key' => $key, 'label' => $label];
+            }
+        }
+
+        $all = array_merge($builtin_active, $custom);
+        $order = get_option('spec_field_order', []);
+        if (!is_array($order) || empty($order)) return $all;
+
+        $rank = [];
+        foreach ($order as $i => $k) {
+            $k = sanitize_key((string) $k);
+            if ($k !== '') $rank[$k] = $i;
+        }
+
+        usort($all, function($a, $b) use ($rank) {
+            $ka = (string) ($a['key'] ?? '');
+            $kb = (string) ($b['key'] ?? '');
+            $ra = array_key_exists($ka, $rank) ? $rank[$ka] : PHP_INT_MAX;
+            $rb = array_key_exists($kb, $rank) ? $rank[$kb] : PHP_INT_MAX;
+            if ($ra === $rb) return 0;
+            return ($ra < $rb) ? -1 : 1;
+        });
+
+        return $all;
+    }
+}
+
+if (!is_admin() && !function_exists('pm_get_spec_icons')) {
+    function pm_get_spec_icons(): array {
+        $defaults = [
+            'pd_inductance'    => 'fa fa-bolt',
+            'pd_current_rating'=> 'fa fa-tachometer',
+            'pd_impedance'     => 'fa fa-signal',
+            'pd_voltage'       => 'fa fa-plug',
+            'pd_frequency'     => 'fa fa-line-chart',
+            'pd_dcr'           => 'fa fa-flash',
+            'pd_insulation'    => 'fa fa-shield',
+            'pd_hipot'         => 'fa fa-superpowers',
+            'pd_turns_ratio'   => 'fa fa-retweet',
+            'pd_power_rating'  => 'fa fa-battery-full',
+            'pd_dimensions'    => 'fa fa-arrows',
+            'pd_weight'        => 'fa fa-balance-scale',
+            'pd_pin_config'    => 'fa fa-sitemap',
+            'pd_mount_type'    => 'fa fa-microchip',
+            'pd_core_material' => 'fa fa-circle-o',
+            'pd_land_pattern'  => 'fa fa-th',
+            'pd_winding'       => 'fa fa-random',
+            'pd_core_shape'    => 'fa fa-diamond',
+            'pd_core_size'     => 'fa fa-arrows-alt',
+            'pd_bobbin_pin'    => 'fa fa-thumb-tack',
+            'pd_wire_type'     => 'fa fa-chain',
+            'pd_wire_size'     => 'fa fa-text-width',
+            'pd_size_range'    => 'fa fa-expand',
+            'pd_output_range'  => 'fa fa-exchange',
+            'pd_temp_range'    => 'fa fa-thermometer-half',
+            'pd_package_type'  => 'fa fa-cube',
+            'pd_packing_qty'   => 'fa fa-cubes',
+            'pd_standards'     => 'fa fa-check-circle',
+            'pd_compliance'    => 'fa fa-leaf',
+            'pd_safety_certs'  => 'fa fa-certificate',
+            'pd_storage_conditions' => 'fa fa-archive',
+            'pd_msl'           => 'fa fa-tint',
+        ];
+        $saved = get_option('spec_field_icons', []);
+        if (!is_array($saved)) $saved = [];
+        return array_merge($defaults, $saved);
+    }
 }
 
 // ============================================
@@ -2535,6 +2883,7 @@ function my_theme_submit_contact_form() {
     }
 
     $file_url = '';
+    $file_path = '';
     if (!empty($_FILES['cf_file']) && !empty($_FILES['cf_file']['name'])) {
         require_once ABSPATH . 'wp-admin/includes/file.php';
         $upload = wp_handle_upload($_FILES['cf_file'], ['test_form' => false]);
@@ -2542,6 +2891,7 @@ function my_theme_submit_contact_form() {
             wp_send_json_error(['message' => 'File upload failed: ' . $upload['error']]);
         }
         $file_url = esc_url_raw($upload['url'] ?? '');
+        $file_path = isset($upload['file']) ? (string) $upload['file'] : '';
     }
 
     global $wpdb;
@@ -2598,7 +2948,74 @@ function my_theme_submit_contact_form() {
         wp_send_json_error(['message' => 'Unable to save your submission. Please try again.']);
     }
 
-    wp_send_json_success(['message' => 'Message sent successfully. Our team will contact you shortly.']);
+    $to_email = sanitize_email(get_option('site_email', get_theme_mod('site_email', 'info@company.com')));
+    $admin_email = sanitize_email(get_option('admin_email'));
+    $recipients = [];
+    if (is_email($to_email)) {
+        $recipients[] = $to_email;
+    }
+    if (is_email($admin_email) && !in_array($admin_email, $recipients, true)) {
+        $recipients[] = $admin_email;
+    }
+    if (empty($recipients)) {
+        wp_send_json_error(['message' => 'No valid recipient email configured in site_email/admin_email.']);
+    }
+
+    $mail_subject = sprintf('[KV Website] New Contact Inquiry - %s', $subject ?: $industry ?: 'General Inquiry');
+    $submitted_at = current_time('mysql');
+    $ip_address = $_SERVER['REMOTE_ADDR'] ?? '-';
+
+    $mail_body = '';
+    $mail_body .= '<div style="background:#f8fafc;padding:24px;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif;color:#0f172a;">';
+    $mail_body .= '<div style="max-width:760px;margin:0 auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">';
+    $mail_body .= '<div style="background:#0042aa;color:#ffffff;padding:16px 20px;">';
+    $mail_body .= '<h2 style="margin:0;font-size:20px;line-height:1.3;">New Contact Form Submission</h2>';
+    $mail_body .= '<p style="margin:6px 0 0;font-size:13px;opacity:.92;">This email is auto-generated from KV website contact form.</p>';
+    $mail_body .= '</div>';
+
+    $mail_body .= '<div style="padding:20px;">';
+    $mail_body .= '<table role="presentation" cellspacing="0" cellpadding="0" style="width:100%;border-collapse:collapse;font-size:14px;">';
+    $mail_body .= '<tr><td style="width:180px;padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;font-weight:600;">Contact Name</td><td style="padding:10px 12px;border:1px solid #e2e8f0;">' . esc_html($name) . '</td></tr>';
+    $mail_body .= '<tr><td style="padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;font-weight:600;">Company Name</td><td style="padding:10px 12px;border:1px solid #e2e8f0;">' . esc_html($company) . '</td></tr>';
+    $mail_body .= '<tr><td style="padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;font-weight:600;">Industry</td><td style="padding:10px 12px;border:1px solid #e2e8f0;">' . esc_html($industry) . '</td></tr>';
+    $mail_body .= '<tr><td style="padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;font-weight:600;">Organization Type</td><td style="padding:10px 12px;border:1px solid #e2e8f0;">' . esc_html($organization_type) . '</td></tr>';
+    $mail_body .= '<tr><td style="padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;font-weight:600;">Country</td><td style="padding:10px 12px;border:1px solid #e2e8f0;">' . esc_html($country) . '</td></tr>';
+    $mail_body .= '<tr><td style="padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;font-weight:600;">Job Title</td><td style="padding:10px 12px;border:1px solid #e2e8f0;">' . esc_html($job_title) . '</td></tr>';
+    $mail_body .= '<tr><td style="padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;font-weight:600;">Email</td><td style="padding:10px 12px;border:1px solid #e2e8f0;"><a href="mailto:' . esc_attr($email) . '">' . esc_html($email) . '</a></td></tr>';
+    $mail_body .= '<tr><td style="padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;font-weight:600;">Phone Number</td><td style="padding:10px 12px;border:1px solid #e2e8f0;">' . esc_html($phone) . '</td></tr>';
+    $mail_body .= '<tr><td style="padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;font-weight:600;">Subject</td><td style="padding:10px 12px;border:1px solid #e2e8f0;">' . esc_html($subject !== '' ? $subject : '-') . '</td></tr>';
+    $mail_body .= '<tr><td style="padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;font-weight:600;">Interested Products</td><td style="padding:10px 12px;border:1px solid #e2e8f0;">' . esc_html($interested_products !== '' ? $interested_products : '-') . '</td></tr>';
+    $mail_body .= '<tr><td style="padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;font-weight:600;">File Upload</td><td style="padding:10px 12px;border:1px solid #e2e8f0;">' . ($file_url !== '' ? '<a href="' . esc_url($file_url) . '" target="_blank" rel="noopener">View uploaded file</a>' : '-') . '</td></tr>';
+    $mail_body .= '<tr><td style="padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;font-weight:600;vertical-align:top;">Message</td><td style="padding:10px 12px;border:1px solid #e2e8f0;white-space:normal;line-height:1.65;">' . nl2br(esc_html($message)) . '</td></tr>';
+    $mail_body .= '</table>';
+
+    $mail_body .= '<div style="margin-top:16px;padding:12px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;font-size:12px;color:#475569;">';
+    $mail_body .= '<div><strong>Submitted at:</strong> ' . esc_html($submitted_at) . '</div>';
+    $mail_body .= '<div><strong>IP Address:</strong> ' . esc_html($ip_address) . '</div>';
+    $mail_body .= '</div>';
+
+    $mail_body .= '</div>';
+    $mail_body .= '</div>';
+    $mail_body .= '</div>';
+    $mail_headers = [
+        'Content-Type: text/html; charset=UTF-8',
+        'Reply-To: ' . sanitize_text_field($name) . ' <' . $email . '>',
+    ];
+    $mail_attachments = [];
+    if ($file_path !== '' && file_exists($file_path)) {
+        $mail_attachments[] = $file_path;
+    }
+
+    $mail_sent = wp_mail($recipients, $mail_subject, $mail_body, $mail_headers, $mail_attachments);
+    if (!$mail_sent) {
+        $recipient_text = implode(', ', $recipients);
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('KV contact mail failed. Recipients: ' . $recipient_text . ' Subject: ' . $mail_subject);
+        }
+        wp_send_json_error(['message' => 'Submission saved, but email notification could not be sent. Recipients: ' . $recipient_text]);
+    }
+
+    wp_send_json_success(['message' => 'Message sent successfully to: ' . implode(', ', $recipients)]);
 }
 
 /**

@@ -941,7 +941,7 @@
                                 'style="font-size:.7rem;padding:3px 8px;border-radius:4px;border:1px solid #e2e8f0;background:' + (isSvg ? 'var(--pm-primary,#3b82f6);color:#fff' : '#f8fafc;color:#64748b') + ';cursor:pointer;">SVG</button>' +
                             (f.builtin
                                 ? '<button type="button" class="pm-toggle-builtin-field" data-key="' + escAttr(f.key) + '" ' +
-                                    'style="font-size:.75rem;padding:3px 8px;border-radius:4px;border:1px solid #fecaca;background:#fff5f5;color:#ef4444;cursor:pointer;" title="ลบ field นี้">✕</button>'
+                                    'style="font-size:.75rem;padding:3px 8px;border-radius:4px;border:1px solid #fecaca;background:#fff5f5;color:#ef4444;cursor:pointer;" title="ลบ field นี้" onclick="return confirm(\'ยืนยันการลบ field นี้?\\n\\nข้อมูล attr ที่เคยกรอกในสินค้าจะยังคงอยู่ในฐานข้อมูล แต่ field นี้จะถูกซ่อนจากฟอร์มและหน้าแสดงผลจนกว่าจะกู้คืน\')">✕</button>'
                                 : '') +
                             (!f.builtin ? '<button type="button" class="pm-delete-custom-field" data-key="' + escAttr(f.key) + '" ' +
                                 'style="font-size:.75rem;padding:3px 8px;border-radius:4px;border:1px solid #fecaca;background:#fff5f5;color:#ef4444;cursor:pointer;" title="ลบ field นี้">✕</button>' : '') +
@@ -1553,8 +1553,6 @@
             const $btn = $(this);
             const $row = $btn.closest('.pm-sf-row');
             const key = String($row.data('key') || '');
-            const ok = window.confirm('ยืนยันการลบ field นี้?\n\nข้อมูล attr ที่เคยกรอกในสินค้าจะยังคงอยู่ในฐานข้อมูล แต่ field นี้จะถูกซ่อนจากฟอร์มและหน้าแสดงผลจนกว่าจะกู้คืน');
-            if (!ok) return;
             if (key) {
                 if (!_disabledBuiltinKeys.includes(key)) {
                     _disabledBuiltinKeys.push(key);

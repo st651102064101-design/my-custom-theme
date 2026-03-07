@@ -91,6 +91,7 @@ $nav_contact_label    = get_option('nav_contact_label',  'Contacts');
 $nav_contact_url_val  = get_option('nav_contact_url',    '/contact/');
 $nav_contact_vis      = get_option('nav_contact_visible','1');
 $nav_custom_items     = get_option('nav_custom_items',   '');
+$nav_menu_items_json_raw = get_option('nav_menu_items_json', '');
 $nav_cta_text_val     = get_option('nav_cta_text',       '');
 $nav_cta_url_val      = get_option('nav_cta_url',        '/contact/');
 $nav_cta_vis          = get_option('nav_cta_visible',    '1');
@@ -196,10 +197,23 @@ $be_all_patterns = function_exists('kv_be_get_all_patterns') ? kv_be_get_all_pat
 .ts-color-preview{display:flex;gap:8px;align-items:center;padding:10px 14px;background:#f8fafc;border:1px solid var(--ts-border);border-radius:8px;margin-bottom:20px;}
 .ts-color-preview .cp-dot{width:30px;height:30px;border-radius:50%;border:2px solid #fff;box-shadow:var(--ts-shadow);}
 .ts-color-preview .cp-label{font-size:11.5px;color:var(--ts-muted);}
-/* ─── Menu Item Row ────────────────────────────── */
-.ts-menu-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--ts-border);border-radius:7px;margin-bottom:8px;background:#fafafa;}
-.ts-menu-item input[type=text]{flex:1;border:1px solid var(--ts-border);border-radius:5px;padding:5px 8px;font-size:12.5px;}
-.ts-menu-item .menu-chk{flex-shrink:0;}
+/* ─── Nav Menu Builder ─────────────────────────── */
+#nav-menu-builder{list-style:none;margin:0;padding:0;}
+.nmb-row{display:flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid var(--ts-border);border-radius:7px;margin-bottom:6px;background:#fafafa;transition:box-shadow .15s,background .15s;}
+.nmb-row.drag-over{box-shadow:0 0 0 2px var(--ts-primary);background:#eff6ff;}
+.nmb-row.dragging{opacity:.35;}
+.nmb-drag{cursor:grab;color:var(--ts-muted);font-size:16px;flex-shrink:0;user-select:none;line-height:1;}
+.nmb-drag:active{cursor:grabbing;}
+.nmb-type-badge{font-size:10px;background:#e2e8f0;border-radius:4px;padding:2px 6px;color:#475569;flex-shrink:0;white-space:nowrap;font-weight:600;}
+.nmb-row input[type=text]{flex:1;min-width:0;border:1px solid var(--ts-border);border-radius:5px;padding:4px 7px;font-size:12.5px;}
+.nmb-row input[type=text]:focus{outline:none;border-color:var(--ts-primary);box-shadow:0 0 0 2px #dbeafe;}
+.nmb-auto-url{font-size:11px;color:var(--ts-muted);white-space:nowrap;flex-shrink:0;background:#f1f5f9;padding:3px 8px;border-radius:4px;border:1px solid #e2e8f0;}
+.nmb-newtab{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--ts-muted);flex-shrink:0;white-space:nowrap;cursor:pointer;}
+.nmb-newtab input{margin:0;cursor:pointer;}
+.nmb-del{border:none;background:none;cursor:pointer;color:#94a3b8;padding:3px 6px;border-radius:4px;font-size:14px;flex-shrink:0;line-height:1;transition:background .1s,color .1s;}
+.nmb-del:hover{background:#fee2e2;color:#dc2626;}
+.nmb-add-btn{display:inline-flex;align-items:center;gap:6px;margin-top:10px;padding:7px 16px;border:1.5px dashed var(--ts-border);border-radius:7px;background:none;cursor:pointer;font-size:12.5px;color:var(--ts-muted);transition:border-color .15s,color .15s;}
+.nmb-add-btn:hover{border-color:var(--ts-primary);color:var(--ts-primary);}
 /* ─── Toast ────────────────────────────────────── */
 #ts-toast{position:fixed;bottom:28px;right:28px;z-index:99999;display:flex;flex-direction:column;gap:8px;pointer-events:none;}
 .ts-toast-msg{background:#1e293b;color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;opacity:0;transform:translateY(10px);transition:opacity .25s,transform .25s;display:flex;align-items:center;gap:8px;pointer-events:auto;}
@@ -708,43 +722,64 @@ $be_all_patterns = function_exists('kv_be_get_all_patterns') ? kv_be_get_all_pat
 
           <!-- Menu Items -->
           <div class="ts-card">
-            <div class="ts-card-title">📋 รายการเมนู</div>
-            <div class="ts-card-desc">เลือกเมนูที่ต้องการแสดง และกำหนดข้อความ/URL</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:6px;">
+              <div class="ts-card-title" style="margin-bottom:0;">📋 รายการเมนู</div>
+              <span id="nmb-save-status" style="font-size:11.5px;color:var(--ts-muted);"></span>
+            </div>
+            <div class="ts-card-desc">เลือกเมนูที่ต้องการแสดง และกำหนดข้อความ/URL — เปลี่ยนแปลงจะบันทึกอัตโนมัติ</div>
 
             <?php
-            $menu_defs = [
-              ['nav_home_visible','nav_home_label','',           'บ้าน','Home',    false],
-              ['nav_about_visible','nav_about_label','nav_about_url', 'เกี่ยวกับ','About Us', true],
-              ['nav_products_visible','nav_products_label','',   'สินค้า','Products', false],
-              ['nav_contact_visible','nav_contact_label','nav_contact_url', 'ติดต่อ','Contact',true],
+            /* ── Load / build nav items ──────────────────────────────────── */
+            $_auto_types = ['home','products'];
+            $_default_items = [
+              ['id'=>'home',     'label'=>$nav_home_label,     'url'=>'',               'type'=>'home',     'visible'=>($nav_home_vis==='1'),     'new_tab'=>false],
+              ['id'=>'about',    'label'=>$nav_about_label,    'url'=>$nav_about_url_val,  'type'=>'custom',   'visible'=>($nav_about_vis==='1'),    'new_tab'=>false],
+              ['id'=>'products', 'label'=>$nav_products_label, 'url'=>'',               'type'=>'products', 'visible'=>($nav_products_vis==='1'), 'new_tab'=>false],
+              ['id'=>'contact',  'label'=>$nav_contact_label,  'url'=>$nav_contact_url_val,'type'=>'custom',   'visible'=>($nav_contact_vis==='1'),  'new_tab'=>false],
             ];
-            $menu_vals = [
-              'nav_home_visible'   => $nav_home_vis,
-              'nav_home_label'     => $nav_home_label,
-              'nav_about_visible'  => $nav_about_vis,
-              'nav_about_label'    => $nav_about_label,
-              'nav_about_url'      => $nav_about_url_val,
-              'nav_products_visible'=> $nav_products_vis,
-              'nav_products_label' => $nav_products_label,
-              'nav_contact_visible'=> $nav_contact_vis,
-              'nav_contact_label'  => $nav_contact_label,
-              'nav_contact_url'    => $nav_contact_url_val,
-            ];
-            foreach($menu_defs as [$vis_name,$label_name,$url_name,$label_th,$label_en,$has_url]):
-            $checked = $menu_vals[$vis_name] === '1' ? 'checked' : '';
+            $_nav_items = [];
+            if ($nav_menu_items_json_raw) {
+              $_decoded = json_decode($nav_menu_items_json_raw, true);
+              if (is_array($_decoded) && count($_decoded) > 0) $_nav_items = $_decoded;
+            }
+            if (empty($_nav_items)) $_nav_items = $_default_items;
+            $_items_json_val = esc_attr(json_encode($_nav_items, JSON_UNESCAPED_UNICODE));
             ?>
-            <div class="ts-menu-item">
-              <input type="hidden" name="<?php echo $vis_name; ?>" value="0">
-              <input type="checkbox" class="menu-chk" name="<?php echo $vis_name; ?>" value="1" <?php echo $checked; ?> style="width:16px;height:16px;flex-shrink:0;">
-              <span style="width:72px;font-size:12px;color:var(--ts-muted);font-weight:600;"><?php echo $label_th; ?></span>
-              <input type="text" name="<?php echo $label_name; ?>" value="<?php echo esc_attr($menu_vals[$label_name]); ?>" placeholder="<?php echo $label_en; ?>" style="max-width:180px;">
-              <?php if($has_url): ?>
-              <input type="text" name="<?php echo $url_name; ?>" value="<?php echo esc_attr($menu_vals[$url_name]); ?>" placeholder="URL (เช่น /about/)" style="flex:1;">
+            <input type="hidden" id="nav_menu_items_json" name="nav_menu_items_json" value="<?php echo $_items_json_val; ?>">
+
+            <ul id="nav-menu-builder">
+            <?php foreach ($_nav_items as $_idx => $_item):
+              $_type     = $_item['type'] ?? 'custom';
+              $_is_auto  = in_array($_type, $_auto_types);
+              $_visible  = !empty($_item['visible']);
+              $_new_tab  = !empty($_item['new_tab']);
+              $_lbl      = esc_attr($_item['label'] ?? '');
+              $_url      = esc_attr($_item['url'] ?? '');
+              $_badge    = ($_type==='home') ? 'หน้าแรก' : (($_type==='products') ? 'สินค้า' : '');
+            ?>
+            <li class="nmb-row" draggable="true" data-idx="<?php echo $_idx; ?>" data-id="<?php echo esc_attr($_item['id'] ?? ''); ?>" data-type="<?php echo esc_attr($_type); ?>">
+              <span class="nmb-drag" title="ลาก-วางเพื่อเรียงลำดับ">⠿</span>
+              <input type="checkbox" class="nmb-vis" style="width:15px;height:15px;flex-shrink:0;" <?php echo $_visible ? 'checked' : ''; ?> title="แสดง/ซ่อนเมนูนี้">
+              <?php if ($_badge): ?><span class="nmb-type-badge"><?php echo $_badge; ?></span><?php endif; ?>
+              <input type="text" class="nmb-lbl" value="<?php echo $_lbl; ?>" placeholder="ชื่อเมนู" style="max-width:150px;flex:0 0 150px;">
+              <?php if ($_is_auto): ?>
+                <span class="nmb-auto-url">🔗 Auto URL</span>
               <?php else: ?>
-              <span style="flex:1;font-size:11px;color:var(--ts-muted);">ลิงก์อัตโนมัติ</span>
+                <input type="text" class="nmb-url" value="<?php echo $_url; ?>" placeholder="URL (เช่น /about/)">
               <?php endif; ?>
-            </div>
+              <label class="nmb-newtab" title="เปิดในแท็บใหม่">
+                <input type="checkbox" class="nmb-tab" <?php echo $_new_tab ? 'checked' : ''; ?>>
+                New Tab
+              </label>
+              <button type="button" class="nmb-del" title="ลบรายการนี้">🗑</button>
+            </li>
             <?php endforeach; ?>
+            </ul>
+            <div style="display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap;">
+              <button type="button" class="nmb-add-btn" id="nmb-add">＋ เพิ่มรายการเมนู</button>
+              <button type="button" id="nmb-save-btn" style="padding:7px 18px;background:var(--ts-primary);color:#fff;border:none;border-radius:7px;font-size:12.5px;font-weight:600;cursor:pointer;">💾 บันทึกเมนู</button>
+              <button type="button" id="nmb-flush-btn" style="padding:7px 18px;background:#64748b;color:#fff;border:none;border-radius:7px;font-size:12.5px;font-weight:600;cursor:pointer;">🔄 ล้างแคช</button>
+            </div>
 
             <div class="ts-sec-head">เมนูเพิ่มเติม / Dropdown</div>
             <div class="ts-field">
@@ -1395,13 +1430,255 @@ function ajaxSave() {
       saveStatus.textContent = '✓ บันทึกแล้ว';
       showToast('✓ บันทึกการตั้งค่าแล้ว', 'success');
       setTimeout(() => saveStatus.textContent = '', 3000);
+      // Clear nav builder pending indicator
+      const nmbSt = document.getElementById('nmb-save-status');
+      if (nmbSt && nmbSt.textContent.includes('เปลี่ยนแปลง')) {
+        nmbSt.textContent = '✓ บันทึกแล้ว';
+        nmbSt.style.color = '#16a34a';
+        setTimeout(() => { nmbSt.textContent = ''; nmbSt.style.color = ''; }, 3000);
+      }
     })
     .catch(() => {
       saveStatus.textContent = '⚠ ไม่สามารถบันทึกได้';
       showToast('⚠ เกิดข้อผิดพลาด — โปรดลองอีกครั้ง', 'error');
+      const nmbSt = document.getElementById('nmb-save-status');
+      if (nmbSt) { nmbSt.textContent = '⚠ บันทึกไม่สำเร็จ ลองกดปุ่ม "บันทึกเมนู"'; nmbSt.style.color = '#dc2626'; }
     });
   }, 800);
 }
+
+/* ══════════════════════════════════════════════════════
+   NAV MENU BUILDER — drag / add / delete / new-tab / sync
+   ══════════════════════════════════════════════════════ */
+(function () {
+  'use strict';
+
+  const AUTO_TYPES = ['home', 'products'];
+  const builder    = document.getElementById('nav-menu-builder');
+  const jsonInput  = document.getElementById('nav_menu_items_json');
+  const addBtn     = document.getElementById('nmb-add');
+  if (!builder || !jsonInput || !addBtn) return;
+
+  /* ── read current item data from a <li.nmb-row> ── */
+  function rowToObj(li) {
+    const type    = li.dataset.type || 'custom';
+    const isAuto  = AUTO_TYPES.includes(type);
+    const urlEl   = li.querySelector('.nmb-url');
+    return {
+      id:      li.dataset.id  || ('custom_' + Date.now()),
+      label:   (li.querySelector('.nmb-lbl')?.value || '').trim(),
+      url:     isAuto ? '' : (urlEl ? urlEl.value.trim() : ''),
+      type:    type,
+      visible: li.querySelector('.nmb-vis')?.checked ? true : false,
+      new_tab: li.querySelector('.nmb-tab')?.checked ? true : false,
+    };
+  }
+
+  /* ── serialize all rows → hidden JSON input ── */
+  function syncJson() {
+    const items = [];
+    builder.querySelectorAll('li.nmb-row').forEach(li => items.push(rowToObj(li)));
+    jsonInput.value = JSON.stringify(items);
+    const st = document.getElementById('nmb-save-status');
+    if (st) { st.textContent = '⏳ มีการเปลี่ยนแปลง…'; st.style.color = '#f59e0b'; }
+    jsonInput.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  /* ── build a new <li> from an item object ── */
+  function buildRow(item) {
+    const isAuto = AUTO_TYPES.includes(item.type || 'custom');
+    const badge  = item.type === 'home' ? 'หน้าแรก' : (item.type === 'products' ? 'สินค้า' : '');
+
+    const li = document.createElement('li');
+    li.className   = 'nmb-row';
+    li.draggable   = true;
+    li.dataset.idx  = '0';
+    li.dataset.id   = item.id || ('custom_' + Date.now() + '_' + Math.random().toString(36).slice(2,6));
+    li.dataset.type = item.type || 'custom';
+
+    li.innerHTML =
+      '<span class="nmb-drag" title="ลาก-วาง เพื่อเรียงลำดับ">⠿</span>' +
+      '<input type="checkbox" class="nmb-vis" style="width:15px;height:15px;flex-shrink:0;"' + (item.visible ? ' checked' : '') + ' title="แสดง/ซ่อนเมนูนี้">' +
+      (badge ? '<span class="nmb-type-badge">' + badge + '</span>' : '') +
+      '<input type="text" class="nmb-lbl" value="' + escHtml(item.label || '') + '" placeholder="ชื่อเมนู" style="max-width:150px;flex:0 0 150px;">' +
+      (isAuto
+        ? '<span class="nmb-auto-url">🔗 Auto URL</span>'
+        : '<input type="text" class="nmb-url" value="' + escHtml(item.url || '') + '" placeholder="URL (เช่น /about/)">') +
+      '<label class="nmb-newtab" title="เปิดลิงก์ในแท็บใหม่"><input type="checkbox" class="nmb-tab"' + (item.new_tab ? ' checked' : '') + '> New Tab</label>' +
+      '<button type="button" class="nmb-del" title="ลบรายการนี้">🗑</button>';
+
+    attachRowEvents(li);
+    return li;
+  }
+
+  function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  /* ── attach events to a row ── */
+  function attachRowEvents(li) {
+    /* delete */
+    li.querySelector('.nmb-del').addEventListener('click', function () {
+      li.remove();
+      syncJson();
+    });
+    /* any input change */
+    li.querySelectorAll('input').forEach(inp => {
+      inp.addEventListener('change', syncJson);
+      if (inp.type === 'text') inp.addEventListener('input', syncJson);
+    });
+    /* drag */
+    li.addEventListener('dragstart', onDragStart);
+    li.addEventListener('dragend',   onDragEnd);
+    li.addEventListener('dragover',  onDragOver);
+    li.addEventListener('dragleave', onDragLeave);
+    li.addEventListener('drop',      onDrop);
+  }
+
+  /* attach events for PHP-rendered rows on page load */
+  builder.querySelectorAll('li.nmb-row').forEach(li => {
+    /* store type from the rendered data via PHP data-idx; rebuild dataset.type from JSON */
+    const items = JSON.parse(jsonInput.value || '[]');
+    const idx   = parseInt(li.dataset.idx, 10);
+    if (!isNaN(idx) && items[idx]) {
+      li.dataset.id   = items[idx].id   || ('item_' + idx);
+      li.dataset.type = items[idx].type || 'custom';
+    }
+    attachRowEvents(li);
+  });
+
+  /* ── add button ── */
+  addBtn.addEventListener('click', function () {
+    const item = { id: 'custom_' + Date.now(), label: '', url: '', type: 'custom', visible: true, new_tab: false };
+    builder.appendChild(buildRow(item));
+    syncJson();
+    const newRow = builder.lastElementChild;
+    newRow.querySelector('.nmb-lbl')?.focus();
+  });
+
+  /* ── manual save button ── */
+  const nmbSaveBtn  = document.getElementById('nmb-save-btn');
+  const nmbStatus   = document.getElementById('nmb-save-status');
+  function nmbSaveNow() {
+    if (!nmbSaveBtn) return;
+    syncJson();
+    const orig = nmbSaveBtn.textContent;
+    nmbSaveBtn.disabled = true;
+    nmbSaveBtn.textContent = '⏳ กำลังบันทึก…';
+    if (nmbStatus) nmbStatus.textContent = '';
+    const nonce  = document.querySelector('meta[name="wp-nonce"]')?.content
+                || (typeof wpRestNonce !== 'undefined' ? wpRestNonce : '<?php echo esc_js(wp_create_nonce('wp_rest')); ?>');
+    const apiUrl = '<?php echo esc_url(rest_url('kv/v1/site-options')); ?>';
+    fetch(apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': nonce },
+      body: JSON.stringify({ nav_menu_items_json: jsonInput.value })
+    })
+    .then(r => r.ok ? r.json() : Promise.reject(r))
+    .then(() => {
+      nmbSaveBtn.textContent = '✓ บันทึกแล้ว!';
+      nmbSaveBtn.style.background = '#16a34a';
+      if (nmbStatus) {
+        nmbStatus.innerHTML = '✓ บันทึกเมนูเรียบร้อย &nbsp; <a href="' + window.location.origin + '/" target="_blank" style="font-size:11px;color:var(--ts-primary);text-decoration:underline;">🔍 ตรวจสอบ Frontend</a>';
+        nmbStatus.style.color = '#16a34a';
+      }
+      // Warm the frontend cache with fresh content
+      fetch(window.location.origin + '/', { cache: 'reload', credentials: 'omit' }).catch(function(){});
+      setTimeout(() => {
+        nmbSaveBtn.disabled = false;
+        nmbSaveBtn.textContent = orig;
+        nmbSaveBtn.style.background = '';
+      }, 3000);
+    })
+    .catch(() => {
+      nmbSaveBtn.textContent = '⚠ บันทึกไม่สำเร็จ';
+      nmbSaveBtn.style.background = '#dc2626';
+      if (nmbStatus) { nmbStatus.textContent = '⚠ เกิดข้อผิดพลาด'; nmbStatus.style.color = '#dc2626'; }
+      setTimeout(() => {
+        nmbSaveBtn.disabled = false;
+        nmbSaveBtn.textContent = orig;
+        nmbSaveBtn.style.background = '';
+        if (nmbStatus) { nmbStatus.textContent = ''; nmbStatus.style.color = ''; }
+      }, 3000);
+    });
+  }
+  if (nmbSaveBtn) nmbSaveBtn.addEventListener('click', nmbSaveNow);
+
+  /* ── clear cache button ── */
+  const nmbFlushBtn = document.getElementById('nmb-flush-btn');
+  if (nmbFlushBtn) {
+    nmbFlushBtn.addEventListener('click', function() {
+      const orig = nmbFlushBtn.textContent;
+      nmbFlushBtn.disabled = true;
+      nmbFlushBtn.textContent = '⏳ กำลังล้างแคช…';
+      const nonce  = document.querySelector('meta[name="wp-nonce"]')?.content
+                  || (typeof wpRestNonce !== 'undefined' ? wpRestNonce : '<?php echo esc_js(wp_create_nonce('wp_rest')); ?>');
+      fetch('<?php echo esc_url(rest_url('kv/v1/flush-cache')); ?>', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': nonce },
+      })
+      .then(r => r.ok ? r.json() : Promise.reject(r))
+      .then(() => {
+        nmbFlushBtn.textContent = '✓ ล้างแคชเรียบร้อย';
+        nmbFlushBtn.style.background = '#16a34a';
+        if (nmbStatus) { nmbStatus.textContent = '✓ ล้างแคชเรียบร้อย'; nmbStatus.style.color = '#16a34a'; }
+        setTimeout(() => {
+          nmbFlushBtn.disabled = false;
+          nmbFlushBtn.textContent = orig;
+          nmbFlushBtn.style.background = '';
+          if (nmbStatus) { nmbStatus.textContent = ''; nmbStatus.style.color = ''; }
+        }, 3000);
+      })
+      .catch(() => {
+        nmbFlushBtn.textContent = '⚠ ล้างแคชไม่สำเร็จ';
+        nmbFlushBtn.style.background = '#dc2626';
+        setTimeout(() => {
+          nmbFlushBtn.disabled = false;
+          nmbFlushBtn.textContent = orig;
+          nmbFlushBtn.style.background = '';
+        }, 3000);
+      });
+    });
+  }
+
+
+  let dragSrc = null;
+
+  function onDragStart(e) {
+    dragSrc = this;
+    this.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', '');
+  }
+  function onDragEnd() {
+    this.classList.remove('dragging');
+    builder.querySelectorAll('.nmb-row').forEach(r => r.classList.remove('drag-over'));
+    dragSrc = null;
+  }
+  function onDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (this !== dragSrc) this.classList.add('drag-over');
+  }
+  function onDragLeave() {
+    this.classList.remove('drag-over');
+  }
+  function onDrop(e) {
+    e.preventDefault();
+    this.classList.remove('drag-over');
+    if (!dragSrc || dragSrc === this) return;
+    /* insert dragSrc before this, or after if dragging down */
+    const rows   = [...builder.querySelectorAll('.nmb-row')];
+    const srcIdx = rows.indexOf(dragSrc);
+    const tgtIdx = rows.indexOf(this);
+    if (srcIdx < tgtIdx) {
+      this.after(dragSrc);
+    } else {
+      this.before(dragSrc);
+    }
+    syncJson();
+  }
+})();
 
 // Debounced auto-save on any field change
 document.getElementById('ts-main-form').addEventListener('change', ajaxSave);

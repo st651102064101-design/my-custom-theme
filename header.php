@@ -355,28 +355,40 @@ $_cta_bg_c = $_nav_cta_bg ?: 'var(--theme-primary)';
         </button>
         <div class="collapse navbar-collapse" id="navbarMain">
             <ul class="navbar-nav <?php echo esc_attr($_nav_align_class); ?> mb-2 mb-lg-0">
-                <?php if (get_option('nav_home_visible','1') === '1') : ?>
+                <?php
+                /* ── Load nav items from JSON or fallback to old options ── */
+                $_nav_items_json_raw = get_option('nav_menu_items_json', '');
+                $_nav_items = [];
+                if ($_nav_items_json_raw) {
+                    $_decoded = json_decode($_nav_items_json_raw, true);
+                    if (is_array($_decoded) && !empty($_decoded)) $_nav_items = $_decoded;
+                }
+                if (empty($_nav_items)) {
+                    $_nav_items = [
+                        ['id'=>'home',     'label'=>get_option('nav_home_label','Home'),           'url'=>'',                                              'type'=>'home',     'visible'=>(get_option('nav_home_visible','1')==='1'),     'new_tab'=>false],
+                        ['id'=>'about',    'label'=>get_option('nav_about_label','About Us'),       'url'=>get_option('nav_about_url','/about/'),            'type'=>'custom',   'visible'=>(get_option('nav_about_visible','1')==='1'),    'new_tab'=>false],
+                        ['id'=>'products', 'label'=>get_option('nav_products_label','Products'),    'url'=>'',                                              'type'=>'products', 'visible'=>(get_option('nav_products_visible','1')==='1'),'new_tab'=>false],
+                        ['id'=>'contact',  'label'=>get_option('nav_contact_label','Contacts'),     'url'=>get_option('nav_contact_url','/contact/'),        'type'=>'custom',   'visible'=>(get_option('nav_contact_visible','1')==='1'),  'new_tab'=>false],
+                    ];
+                }
+                foreach ($_nav_items as $_ni):
+                    if (empty($_ni['visible'])) continue;
+                    $_ni_label   = esc_html( $_ni['label'] ?? '' );
+                    $_ni_type    = $_ni['type'] ?? 'custom';
+                    $_ni_new_tab = !empty($_ni['new_tab']);
+                    $_ni_target  = $_ni_new_tab ? ' target="_blank" rel="noopener noreferrer"' : '';
+
+                    if ($_ni_type === 'home') : ?>
                 <li class="nav-item">
-                    <a class="nav-link<?php echo (is_front_page()) ? ' active' : ''; ?>" href="<?php echo esc_url(home_url('/')); ?>"><?php echo esc_html(get_option('nav_home_label','Home')); ?></a>
+                    <a class="nav-link<?php echo (is_front_page()) ? ' active' : ''; ?>" href="<?php echo esc_url(home_url('/')); ?>"<?php echo $_ni_target; ?>><?php echo $_ni_label; ?></a>
                 </li>
-                <?php endif; ?>
-                <?php if (get_option('nav_about_visible','1') === '1') : ?>
-                <li class="nav-item">
-                    <?php
-                    $nav_about_url  = get_option('nav_about_url','/about/');
-                    $nav_about_href = (strpos($nav_about_url,'http') === 0) ? $nav_about_url : home_url($nav_about_url);
-                    ?>
-                    <a class="nav-link<?php echo ($current_slug === 'about') ? ' active' : ''; ?>"
-                       href="<?php echo esc_url($nav_about_href); ?>"><?php echo esc_html(get_option('nav_about_label','About Us')); ?></a>
-                </li>
-                <?php endif; ?>
-                <?php if (get_option('nav_products_visible','1') === '1') : ?>
-                <?php $has_nav_cats = $nav_categories && !is_wp_error($nav_categories) && count($nav_categories) > 0; ?>
-                <?php if ($has_nav_cats) : ?>
+                    <?php elseif ($_ni_type === 'products') :
+                        $has_nav_cats = $nav_categories && !is_wp_error($nav_categories) && count($nav_categories) > 0;
+                        if ($has_nav_cats) : ?>
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle<?php echo $is_product_page ? ' active' : ''; ?>"
                        href="<?php echo esc_url(home_url('/products/')); ?>"
-                       role="button" aria-expanded="false"><?php echo esc_html(get_option('nav_products_label','Products')); ?></a>
+                       role="button" aria-expanded="false"<?php echo $_ni_target; ?>><?php echo $_ni_label; ?></a>
                     <ul class="dropdown-menu" style="min-width:200px;border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,.12);border:1px solid rgba(0,0,0,.07);padding:6px 0;overflow:visible;">
                         <?php if ($nav_categories && !is_wp_error($nav_categories)) : ?>
                             <?php
@@ -397,8 +409,6 @@ $_cta_bg_c = $_nav_cta_bg ?: 'var(--theme-primary)';
                                 $cat_path      = (!is_wp_error($cat_link) && $cat_link)
                                     ? trim((string) parse_url($cat_link, PHP_URL_PATH), '/')
                                     : '';
-                                // Direct slug-based match: works even when get_term_link() returns flat URL
-                                // but browser URL is hierarchical (products/parent-slug/child-slug/)
                                 $cat_slug_prefix = 'products/' . $cat->slug;
                                 $has_active_child = false;
                                 if ($has_sub && $sub['type'] === 'terms') {
@@ -456,7 +466,6 @@ $_cta_bg_c = $_nav_cta_bg ?: 'var(--theme-primary)';
                                                 $child_path   = (!is_wp_error($child_link) && $child_link)
                                                     ? trim((string) parse_url($child_link, PHP_URL_PATH), '/')
                                                     : '';
-                                                // Direct slug match: products/parent-slug/child-slug or products/child-slug
                                                 $child_slug_nested = 'products/' . $cat->slug . '/' . $child->slug;
                                                 $child_slug_flat   = 'products/' . $child->slug;
                                                 $child_active = ($active_term_id === (int) $child->term_id)
@@ -527,23 +536,24 @@ $_cta_bg_c = $_nav_cta_bg ?: 'var(--theme-primary)';
                         <?php endif; ?>
                     </ul>
                 </li>
-                <?php else : ?>
+                        <?php else : ?>
                 <li class="nav-item">
                     <a class="nav-link<?php echo $is_product_page ? ' active' : ''; ?>"
-                       href="<?php echo esc_url(home_url('/products/')); ?>"><?php echo esc_html(get_option('nav_products_label','Products')); ?></a>
+                       href="<?php echo esc_url(home_url('/products/')); ?>"<?php echo $_ni_target; ?>><?php echo $_ni_label; ?></a>
                 </li>
-                <?php endif; ?>
-                <?php endif; /* nav_products_visible */ ?>
-                <?php if (get_option('nav_contact_visible','1') === '1') : ?>
-                <?php
-                $nav_contact_url  = get_option('nav_contact_url','/contact/');
-                $nav_contact_href = (strpos($nav_contact_url,'http') === 0) ? $nav_contact_url : home_url($nav_contact_url);
-                ?>
+                        <?php endif; ?>
+                    <?php else :
+                        /* custom / about / contact / any other type */
+                        $_ni_url  = $_ni['url'] ?? '';
+                        $_ni_href = (strpos($_ni_url,'http') === 0) ? $_ni_url : (trim($_ni_url) !== '' ? home_url($_ni_url) : '#');
+                        $_ni_slug = sanitize_title( $_ni['label'] ?? '' );
+                        $_ni_active = ($current_slug === $_ni_slug) ? ' active' : '';
+                    ?>
                 <li class="nav-item">
-                    <a class="nav-link<?php echo ($current_slug === 'contact') ? ' active' : ''; ?>"
-                       href="<?php echo esc_url($nav_contact_href); ?>"><?php echo esc_html(get_option('nav_contact_label','Contacts')); ?></a>
+                    <a class="nav-link<?php echo $_ni_active; ?>" href="<?php echo esc_url($_ni_href); ?>"<?php echo $_ni_target; ?>><?php echo $_ni_label; ?></a>
                 </li>
-                <?php endif; ?>
+                    <?php endif; ?>
+                <?php endforeach; ?>
                 <?php
                 // ── Custom Nav Items (with Dropdown support) ──
                 $custom_raw = explode("\n", get_option('nav_custom_items', ''));

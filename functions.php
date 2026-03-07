@@ -591,6 +591,110 @@ function my_theme_default_about_certifications() {
     );
 }
 
+/**
+ * Flush common WordPress page-cache plugins so the frontend reflects nav changes.
+ */
+function my_theme_flush_page_caches() {
+    // LiteSpeed server-level purge via HTTP header (works even without WP plugin)
+    if ( ! headers_sent() ) {
+        header( 'X-LiteSpeed-Purge: *', true );
+    }
+    // LiteSpeed Cache (action-based)
+    do_action( 'litespeed_purge_all' );
+    // LiteSpeed Cache (direct class)
+    if ( class_exists( '\LiteSpeed\Purge' ) ) {
+        try { \LiteSpeed\Purge::purge_all(); } catch ( \Throwable $e ) {}
+    }
+    // WP Rocket
+    if ( function_exists( 'rocket_clean_domain' ) ) rocket_clean_domain();
+    // W3 Total Cache
+    if ( function_exists( 'w3tc_flush_all' ) ) w3tc_flush_all();
+    // WP Super Cache
+    if ( function_exists( 'wp_cache_clear_cache' ) ) wp_cache_clear_cache();
+    // WP Fastest Cache
+    if ( function_exists( 'wpfc_clear_all_cache' ) ) wpfc_clear_all_cache();
+    if ( class_exists( 'WpFastestCache' ) && method_exists( 'WpFastestCache', 'deleteCache' ) ) {
+        try { ( new WpFastestCache() )->deleteCache( true ); } catch ( \Throwable $e ) {}
+    }
+    // Breeze (Cloudways)
+    if ( function_exists( 'breeze_clear_all_cache' ) ) breeze_clear_all_cache();
+    do_action( 'breeze_clear_all_cache' );
+    // Cache Enabler
+    do_action( 'cache_enabler_clear_complete_cache' );
+    // Flying Press
+    do_action( 'flying_press_purge_all' );
+    // Comet Cache
+    if ( class_exists( 'Comet_Cache' ) && method_exists( 'Comet_Cache', 'clearCache' ) ) {
+        try { \Comet_Cache::clearCache(); } catch ( \Throwable $e ) {}
+    }
+    // Nginx Helper (Nginx FastCGI Cache)
+    do_action( 'rt_nginx_helper_purge_all' );
+    // SG Optimizer (SiteGround)
+    if ( function_exists( 'sg_cachepress_purge_cache' ) ) sg_cachepress_purge_cache();
+    // Autoptimize
+    if ( class_exists( 'autoptimizeCache' ) && method_exists( 'autoptimizeCache', 'clearall' ) ) {
+        try { \autoptimizeCache::clearall(); } catch ( \Throwable $e ) {}
+    }
+    // Varnish
+    do_action( 'varnish_ip_purge' );
+    // WordPress object cache (in-process)
+    wp_cache_flush();
+    // Generic action for other plugins
+    do_action( 'my_theme_flush_page_caches' );
+}
+
+// Auto-flush page cache whenever nav_menu_items_json is created or updated
+add_action( 'updated_option', function( $option ) {
+    if ( $option === 'nav_menu_items_json' ) {
+        my_theme_flush_page_caches();
+    }
+} );
+add_action( 'added_option', function( $option ) {
+    if ( $option === 'nav_menu_items_json' ) {
+        my_theme_flush_page_caches();
+    }
+} );
+
+/**
+ * Sanitize nav_menu_items_json — array of menu item objects
+ * Each item: { id, label, url, type, visible, new_tab }
+ */
+function my_theme_sanitize_nav_menu_items_json( $raw ) {
+    $decoded = array();
+    if ( is_array( $raw ) ) {
+        $decoded = $raw;
+    } elseif ( is_string( $raw ) && trim( $raw ) !== '' ) {
+        // REST API body is already JSON-decoded; do NOT wp_unslash here as it would corrupt the JSON
+        $decoded = json_decode( $raw, true );
+        if ( ! is_array( $decoded ) ) {
+            // Try once more after stripping any magic-quote-style slashes (POST form submissions)
+            $decoded = json_decode( wp_unslash( $raw ), true );
+        }
+        if ( ! is_array( $decoded ) ) {
+            return '';
+        }
+    }
+    $allowed_types = array( 'home', 'products', 'custom', 'about', 'contact' );
+    $items = array();
+    foreach ( $decoded as $item ) {
+        if ( ! is_array( $item ) ) continue;
+        $type = sanitize_text_field( (string) ( $item['type'] ?? 'custom' ) );
+        if ( ! in_array( $type, $allowed_types, true ) ) $type = 'custom';
+        $url_raw = (string) ( $item['url'] ?? '' );
+        // Allow relative paths or absolute URLs; strip obviously bad schemes
+        $url_san = ( strpos( $url_raw, 'javascript' ) === false ) ? esc_url_raw( $url_raw ) : '';
+        $items[] = array(
+            'id'      => sanitize_key( (string) ( $item['id']    ?? ( 'item_' . count( $items ) ) ) ),
+            'label'   => sanitize_text_field( (string) ( $item['label']   ?? '' ) ),
+            'url'     => $url_san,
+            'type'    => $type,
+            'visible' => ! empty( $item['visible'] ),
+            'new_tab' => ! empty( $item['new_tab']  ),
+        );
+    }
+    return wp_json_encode( $items, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES );
+}
+
 function my_theme_sanitize_about_certifications_json($raw) {
     $decoded = array();
 
@@ -1405,6 +1509,7 @@ add_action('admin_init', function() {
     register_setting('my_theme_settings', 'nav_cta_url',            ['sanitize_callback' => 'esc_url_raw']);
     register_setting('my_theme_settings', 'nav_cta_visible',        ['sanitize_callback' => 'sanitize_text_field']);
     register_setting('my_theme_settings', 'nav_custom_items',       ['sanitize_callback' => 'sanitize_textarea_field']);
+    register_setting('my_theme_settings', 'nav_menu_items_json',    ['sanitize_callback' => 'my_theme_sanitize_nav_menu_items_json']);
     // Navbar style
     register_setting('my_theme_settings', 'nav_bg_color',           ['sanitize_callback' => 'sanitize_hex_color']);
     register_setting('my_theme_settings', 'nav_text_color',         ['sanitize_callback' => 'sanitize_hex_color']);
@@ -1521,6 +1626,10 @@ function my_theme_settings_page() {
     // Sync: save to both wp_options AND theme_mods so get_theme_mod() still works
     if (isset($_POST['kv_theme_nonce']) && wp_verify_nonce($_POST['kv_theme_nonce'], 'kv_theme_settings_save')) {
         $fields = ['theme_primary_color','theme_accent_color','theme_bg_color','site_phone','site_fax','site_email','site_email_sales','site_address','site_address_full','site_hours_weekday','site_hours_weekend','site_map_embed','site_company_name','site_copyright','site_years_experience','site_total_products','site_countries_served','site_happy_customers','site_years_auto','site_products_auto','site_founded_year','site_logo_url','site_logo_light_url','banner_bg_color','banner_bg_image','banner_bg_video','banner_overlay','banner_fadein_delay','banner_video_start','banner_video_end','about_s1_heading','about_s1_title1','about_s1_text1','about_s1_title2','about_s1_text2','about_s1_text3','about_s1_image','about_s2_title1','about_s2_text1','about_s2_title2','about_s2_text2','about_s2_text3','about_s2_image','about_mission_text','about_vision_text','about_values','about_cta_heading','about_cta_text','about_cta_btn_text','about_cta_btn_url','about_certifications_json','nav_logo_alt','footer_about_text','footer_quick_links','chat_widget_enabled','chat_line_enabled','chat_line_id','chat_wechat_enabled','chat_wechat_id','chat_wechat_qr_url','chat_whatsapp_enabled','chat_whatsapp_number','social_facebook_url','social_instagram_url','social_linkedin_url','rag_chat_enabled','gallery_interval'];
+        // Save nav menu JSON if present
+        if ( isset( $_POST['nav_menu_items_json'] ) ) {
+            update_option( 'nav_menu_items_json', my_theme_sanitize_nav_menu_items_json( stripslashes( $_POST['nav_menu_items_json'] ) ) );
+        }
         foreach ($fields as $key) {
             if (isset($_POST[$key])) {
                 if (in_array($key, ['site_email','site_email_sales'])) {
@@ -1566,6 +1675,8 @@ function my_theme_settings_page() {
                 }
             }
         }
+        // Clear common page caches so frontend reflects changes immediately
+        my_theme_flush_page_caches();
         echo '<div class="notice notice-success is-dismissible"><p>✅ บันทึกข้อมูลเรียบร้อย!</p></div>';
     }
 
@@ -5608,20 +5719,21 @@ add_action('rest_api_init', function() {
         'nav_bg_color','nav_text_color','nav_hover_color','nav_active_color','nav_cta_bg','nav_cta_text_color',
     );
     $s_ta    = array('site_address_full','footer_about_text','footer_quick_links','nav_custom_items','about_certifications_json');
+    $s_nav_json = array('nav_menu_items_json');
 
     register_rest_route('kv/v1', '/site-options', array(
         array(
             'methods'             => 'GET',
-            'callback'            => function() use ($s_text, $s_url, $s_color, $s_ta) {
+            'callback'            => function() use ($s_text, $s_url, $s_color, $s_ta, $s_nav_json) {
                 $data = array();
-                foreach (array_merge($s_text,$s_url,$s_color,$s_ta) as $k) $data[$k] = get_option($k, '');
+                foreach (array_merge($s_text,$s_url,$s_color,$s_ta,$s_nav_json) as $k) $data[$k] = get_option($k, '');
                 return rest_ensure_response($data);
             },
             'permission_callback' => '__return_true',
         ),
         array(
             'methods'             => 'POST',
-            'callback'            => function(WP_REST_Request $req) use ($s_text, $s_url, $s_float, $s_color, $s_ta) {
+            'callback'            => function(WP_REST_Request $req) use ($s_text, $s_url, $s_float, $s_color, $s_ta, $s_nav_json) {
                 if (!current_user_can('manage_options')) {
                     return new WP_Error('forbidden', 'Forbidden', array('status' => 403));
                 }
@@ -5646,12 +5758,39 @@ add_action('rest_api_init', function() {
                         update_option($k, sanitize_textarea_field($body[$k]));
                     }
                 }
+                foreach ($s_nav_json as $k) {
+                    if (!isset($body[$k])) continue;
+                    update_option($k, my_theme_sanitize_nav_menu_items_json($body[$k]));
+                }
                 $primary_sync = sanitize_hex_color(get_option('theme_primary_color', '#0056d6')) ?: '#0056d6';
                 update_option('banner_bg_color', $primary_sync);
-                return rest_ensure_response(array('success' => true));
+                // Clear page caches so the frontend reflects nav changes immediately
+                my_theme_flush_page_caches();
+                $resp = rest_ensure_response(array('success' => true));
+                $resp->header( 'X-LiteSpeed-Purge', '*' );
+                $resp->header( 'Cache-Control', 'no-cache, no-store, must-revalidate' );
+                return $resp;
             },
             'permission_callback' => function() { return current_user_can('manage_options'); },
         ),
+    ));
+});
+
+// REST API: flush page caches on demand
+add_action('rest_api_init', function() {
+    register_rest_route('kv/v1', '/flush-cache', array(
+        'methods'             => 'POST',
+        'callback'            => function() {
+            if (!current_user_can('manage_options')) {
+                return new WP_Error('forbidden', 'Forbidden', array('status' => 403));
+            }
+            my_theme_flush_page_caches();
+            $resp = rest_ensure_response(array('success' => true, 'message' => 'Cache flushed'));
+            $resp->header( 'X-LiteSpeed-Purge', '*' );
+            $resp->header( 'Cache-Control', 'no-cache, no-store, must-revalidate' );
+            return $resp;
+        },
+        'permission_callback' => function() { return current_user_can('manage_options'); },
     ));
 });
 

@@ -388,6 +388,18 @@ add_action('phpmailer_init', function($phpmailer) {
     }
 }, 20, 1);
 
+add_filter('wp_mail_smtp_custom_options', function($phpmailer) {
+    $phpmailer->SMTPOptions = array(
+        'ssl' => array(
+            'verify_peer'       => false,
+            'verify_peer_name'  => false,
+            'allow_self_signed' => true,
+        ),
+    );
+
+    return $phpmailer;
+});
+
 add_filter('wp_mail_from', function($from) {
     $smtp = kv_theme_get_smtp_config();
     $has_plugin_mailer = kv_theme_has_active_smtp_mailer();

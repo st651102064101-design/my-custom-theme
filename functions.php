@@ -274,6 +274,198 @@ if (!function_exists('kv_theme_allow_theme_smtp_override')) {
     }
 }
 
+if (!function_exists('kv_theme_get_brevo_config')) {
+    function kv_theme_get_brevo_config() {
+        $get = static function($key, $default = '') {
+            $const_keys = ['KV_BREVO_' . $key, 'BREVO_' . $key];
+            foreach ($const_keys as $const_key) {
+                if (defined($const_key)) {
+                    return constant($const_key);
+                }
+            }
+
+            $env_keys = ['KV_BREVO_' . $key, 'BREVO_' . $key];
+            foreach ($env_keys as $env_key) {
+                $value = getenv($env_key);
+                if ($value !== false && $value !== '') {
+                    return $value;
+                }
+            }
+
+            $option_key = 'kv_brevo_' . strtolower($key);
+            $option_value = get_option($option_key, null);
+            if ($option_value !== null && $option_value !== '') {
+                return $option_value;
+            }
+
+            return $default;
+        };
+
+        $api_key = trim((string) $get('API_KEY', ''));
+        $from = sanitize_email((string) $get('FROM', get_option('admin_email', '')));
+        $from_name = sanitize_text_field((string) $get('FROM_NAME', get_bloginfo('name')));
+
+        return [
+            'api_key' => $api_key,
+            'from' => $from,
+            'from_name' => $from_name,
+            'enabled' => ($api_key !== '' && is_email($from)),
+        ];
+    }
+}
+
+if (!function_exists('kv_theme_parse_email_list')) {
+    function kv_theme_parse_email_list($raw) {
+        $items = is_array($raw) ? $raw : preg_split('/,/', (string) $raw);
+        $items = is_array($items) ? $items : [];
+        $parsed = [];
+
+        foreach ($items as $item) {
+            $item = trim((string) $item);
+            if ($item === '') continue;
+
+            $name = '';
+            $email = '';
+
+            if (preg_match('/^(.+?)\s*<([^>]+)>$/', $item, $m)) {
+                $name = trim((string) $m[1], " \t\n\r\0\x0B\"'");
+                $email = sanitize_email((string) $m[2]);
+            } else {
+                $email = sanitize_email($item);
+            }
+
+            if (!is_email($email)) continue;
+
+            $entry = ['email' => $email];
+            if ($name !== '') {
+                $entry['name'] = $name;
+            }
+
+            $parsed[] = $entry;
+        }
+
+        return $parsed;
+    }
+}
+
+if (!function_exists('kv_theme_detect_html_mail')) {
+    function kv_theme_detect_html_mail($headers) {
+        if (empty($headers)) return false;
+        $lines = is_array($headers) ? $headers : preg_split('/\r\n|\r|\n/', (string) $headers);
+        if (!is_array($lines)) return false;
+
+        foreach ($lines as $line) {
+            if (stripos((string) $line, 'content-type:') === false) continue;
+            if (stripos((string) $line, 'text/html') !== false) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+}
+
+if (!function_exists('kv_theme_set_last_mail_error')) {
+    function kv_theme_set_last_mail_error($message) {
+        $GLOBALS['kv_theme_last_mail_error'] = (string) $message;
+    }
+}
+
+if (!function_exists('kv_theme_get_last_mail_error')) {
+    function kv_theme_get_last_mail_error() {
+        return isset($GLOBALS['kv_theme_last_mail_error']) ? (string) $GLOBALS['kv_theme_last_mail_error'] : '';
+    }
+}
+
+if (!function_exists('kv_theme_set_last_mail_message_id')) {
+    function kv_theme_set_last_mail_message_id($message_id) {
+        $GLOBALS['kv_theme_last_mail_message_id'] = (string) $message_id;
+    }
+}
+
+if (!function_exists('kv_theme_get_last_mail_message_id')) {
+    function kv_theme_get_last_mail_message_id() {
+        return isset($GLOBALS['kv_theme_last_mail_message_id']) ? (string) $GLOBALS['kv_theme_last_mail_message_id'] : '';
+    }
+}
+
+add_filter('pre_wp_mail', function($return, $atts) {
+    kv_theme_set_last_mail_error('');
+    kv_theme_set_last_mail_message_id('');
+
+    $brevo = kv_theme_get_brevo_config();
+    if (empty($brevo['enabled'])) {
+        return $return;
+    }
+
+    if (stripos((string) $brevo['api_key'], 'xsmtpsib-') === 0) {
+        kv_theme_set_last_mail_error('คีย์ที่ใช้เป็น SMTP key (xsmtpsib-) แต่โหมดนี้ต้องใช้ Brevo API key (xkeysib-)');
+        return false;
+    }
+
+    if (function_exists('kv_theme_is_non_routable_email') && kv_theme_is_non_routable_email($brevo['from'])) {
+        kv_theme_set_last_mail_error('From Email ต้องเป็นโดเมนจริงที่รับส่งได้ (ห้ามใช้ .local/.test/.example) และต้องยืนยัน Sender ใน Brevo');
+        return false;
+    }
+
+    $to = kv_theme_parse_email_list($atts['to'] ?? '');
+    if (empty($to)) {
+        kv_theme_set_last_mail_error('ไม่พบอีเมลผู้รับ (To)');
+        return false;
+    }
+
+    $subject = (string) ($atts['subject'] ?? '');
+    $message = (string) ($atts['message'] ?? '');
+    $headers = $atts['headers'] ?? [];
+
+    $payload = [
+        'sender' => [
+            'email' => (string) $brevo['from'],
+            'name' => (string) $brevo['from_name'],
+        ],
+        'to' => $to,
+        'subject' => $subject,
+    ];
+
+    if (kv_theme_detect_html_mail($headers)) {
+        $payload['htmlContent'] = $message;
+    } else {
+        $payload['textContent'] = wp_strip_all_tags($message);
+    }
+
+    $response = wp_remote_post('https://api.brevo.com/v3/smtp/email', [
+        'timeout' => 20,
+        'headers' => [
+            'accept' => 'application/json',
+            'content-type' => 'application/json',
+            'api-key' => (string) $brevo['api_key'],
+        ],
+        'body' => wp_json_encode($payload),
+    ]);
+
+    if (is_wp_error($response)) {
+        $err = (string) $response->get_error_message();
+        kv_theme_set_last_mail_error('Brevo request error: ' . $err);
+        @error_log('[KV_MAIL] Brevo request error: ' . $err);
+        return false;
+    }
+
+    $code = (int) wp_remote_retrieve_response_code($response);
+    $body = (string) wp_remote_retrieve_body($response);
+    if ($code < 200 || $code >= 300) {
+        kv_theme_set_last_mail_error('Brevo API failed (' . $code . '): ' . $body);
+        @error_log('[KV_MAIL] Brevo API failed (' . $code . '): ' . $body);
+        return false;
+    }
+
+    $json = json_decode($body, true);
+    if (is_array($json) && !empty($json['messageId'])) {
+        kv_theme_set_last_mail_message_id((string) $json['messageId']);
+    }
+
+    return true;
+}, 5, 2);
+
 if (!function_exists('kv_theme_is_non_routable_email')) {
     function kv_theme_is_non_routable_email($email) {
         $email = sanitize_email((string) $email);
@@ -1456,6 +1648,11 @@ add_action('admin_init', function() {
     register_setting('my_theme_settings', 'site_hours_weekday',['sanitize_callback' => 'sanitize_text_field']);
     register_setting('my_theme_settings', 'site_hours_weekend',['sanitize_callback' => 'sanitize_text_field']);
     register_setting('my_theme_settings', 'site_map_embed',    ['sanitize_callback' => 'esc_url_raw']);
+    // Mail (Brevo API - non SMTP)
+    register_setting('my_theme_settings', 'kv_brevo_api_key',   ['sanitize_callback' => 'sanitize_text_field']);
+    register_setting('my_theme_settings', 'kv_brevo_from',      ['sanitize_callback' => 'sanitize_text_field']);
+    register_setting('my_theme_settings', 'kv_brevo_from_name', ['sanitize_callback' => 'sanitize_text_field']);
+    register_setting('my_theme_settings', 'kv_brevo_test_to',   ['sanitize_callback' => 'sanitize_email']);
     // Company Info
     register_setting('my_theme_settings', 'site_company_name', ['sanitize_callback' => 'sanitize_text_field']);
     register_setting('my_theme_settings', 'site_copyright',    ['sanitize_callback' => 'sanitize_text_field']);
@@ -1635,17 +1832,24 @@ add_action('admin_enqueue_scripts', function($hook) {
 function my_theme_settings_page() {
     if (!current_user_can('manage_options')) return;
 
+    $kv_mail_test_notice = null;
+
     // Sync: save to both wp_options AND theme_mods so get_theme_mod() still works
     if (isset($_POST['kv_theme_nonce']) && wp_verify_nonce($_POST['kv_theme_nonce'], 'kv_theme_settings_save')) {
-        $fields = ['theme_primary_color','theme_accent_color','theme_bg_color','site_phone','site_fax','site_email','site_email_sales','site_address','site_address_full','site_hours_weekday','site_hours_weekend','site_map_embed','site_company_name','site_copyright','site_years_experience','site_total_products','site_countries_served','site_happy_customers','site_years_auto','site_products_auto','site_founded_year','site_logo_url','site_logo_light_url','banner_bg_color','banner_bg_image','banner_bg_video','banner_overlay','banner_fadein_delay','banner_video_start','banner_video_end','about_s1_heading','about_s1_title1','about_s1_text1','about_s1_title2','about_s1_text2','about_s1_text3','about_s1_image','about_s2_title1','about_s2_text1','about_s2_title2','about_s2_text2','about_s2_text3','about_s2_image','about_mission_text','about_vision_text','about_values','about_cta_heading','about_cta_text','about_cta_btn_text','about_cta_btn_url','about_certifications_json','nav_logo_alt','footer_about_text','footer_quick_links','chat_widget_enabled','chat_line_enabled','chat_line_id','chat_wechat_enabled','chat_wechat_id','chat_wechat_qr_url','chat_whatsapp_enabled','chat_whatsapp_number','social_facebook_url','social_instagram_url','social_linkedin_url','rag_chat_enabled','gallery_interval'];
+        $fields = ['theme_primary_color','theme_accent_color','theme_bg_color','site_phone','site_fax','site_email','site_email_sales','site_address','site_address_full','site_hours_weekday','site_hours_weekend','site_map_embed','kv_brevo_api_key','kv_brevo_from','kv_brevo_from_name','kv_brevo_test_to','site_company_name','site_copyright','site_years_experience','site_total_products','site_countries_served','site_happy_customers','site_years_auto','site_products_auto','site_founded_year','site_logo_url','site_logo_light_url','banner_bg_color','banner_bg_image','banner_bg_video','banner_overlay','banner_fadein_delay','banner_video_start','banner_video_end','about_s1_heading','about_s1_title1','about_s1_text1','about_s1_title2','about_s1_text2','about_s1_text3','about_s1_image','about_s2_title1','about_s2_text1','about_s2_title2','about_s2_text2','about_s2_text3','about_s2_image','about_mission_text','about_vision_text','about_values','about_cta_heading','about_cta_text','about_cta_btn_text','about_cta_btn_url','about_certifications_json','nav_logo_alt','footer_about_text','footer_quick_links','chat_widget_enabled','chat_line_enabled','chat_line_id','chat_wechat_enabled','chat_wechat_id','chat_wechat_qr_url','chat_whatsapp_enabled','chat_whatsapp_number','social_facebook_url','social_instagram_url','social_linkedin_url','rag_chat_enabled','gallery_interval'];
         // Save nav menu JSON if present
         if ( isset( $_POST['nav_menu_items_json'] ) ) {
             update_option( 'nav_menu_items_json', my_theme_sanitize_nav_menu_items_json( stripslashes( $_POST['nav_menu_items_json'] ) ) );
         }
         foreach ($fields as $key) {
             if (isset($_POST[$key])) {
-                if (in_array($key, ['site_email','site_email_sales'])) {
+                if (in_array($key, ['site_email','site_email_sales','kv_brevo_test_to'], true)) {
                     $val = sanitize_email($_POST[$key]);
+                } elseif ($key === 'kv_brevo_from') {
+                    // Keep the exact latest user input in settings; validate only when sending.
+                    $val = sanitize_text_field($_POST[$key]);
+                } elseif ($key === 'kv_brevo_api_key') {
+                    $val = sanitize_text_field($_POST[$key]);
                 } elseif ($key === 'site_address_full') {
                     $val = sanitize_textarea_field($_POST[$key]);
                 } elseif (in_array($key, ['site_logo_url','site_logo_light_url','banner_bg_image','banner_bg_video','about_s1_image','about_s2_image','about_cta_btn_url','site_map_embed','chat_wechat_qr_url','social_facebook_url','social_instagram_url','social_linkedin_url'])) {
@@ -1689,7 +1893,45 @@ function my_theme_settings_page() {
         }
         // Clear common page caches so frontend reflects changes immediately
         my_theme_flush_page_caches();
+
+        if (!empty($_POST['kv_brevo_send_test'])) {
+            $test_to = isset($_POST['kv_brevo_test_to']) ? sanitize_email((string) $_POST['kv_brevo_test_to']) : '';
+            if (!is_email($test_to)) {
+                $kv_mail_test_notice = [
+                    'type' => 'error',
+                    'text' => '❌ ทดสอบส่งอีเมลไม่สำเร็จ: อีเมลปลายทางไม่ถูกต้อง',
+                ];
+            } else {
+                $subject = '[KV Theme] Brevo Test Email';
+                $message = "This is a test email sent from Theme Settings via Brevo API.\n\n";
+                $message .= 'Site: ' . home_url('/') . "\n";
+                $message .= 'Time (UTC): ' . gmdate('Y-m-d H:i:s') . "\n";
+                $headers = ['Content-Type: text/plain; charset=UTF-8'];
+
+                $sent = wp_mail($test_to, $subject, $message, $headers);
+                if ($sent) {
+                    $message_id = kv_theme_get_last_mail_message_id();
+                    $detail = $message_id !== '' ? ('<br><small>Brevo messageId: ' . esc_html($message_id) . '</small>') : '';
+                    $kv_mail_test_notice = [
+                        'type' => 'success',
+                        'text' => '✅ ส่งอีเมลทดสอบสำเร็จไปที่: ' . esc_html($test_to) . $detail,
+                    ];
+                } else {
+                    $last_mail_error = kv_theme_get_last_mail_error();
+                    $detail = $last_mail_error !== '' ? ('<br><small>' . esc_html($last_mail_error) . '</small>') : '';
+                    $kv_mail_test_notice = [
+                        'type' => 'error',
+                        'text' => '❌ ทดสอบส่งอีเมลไม่สำเร็จ: กรุณาตรวจ API Key, Sender, และการยืนยันโดเมนใน Brevo' . $detail,
+                    ];
+                }
+            }
+        }
+
         echo '<div class="notice notice-success is-dismissible"><p>✅ บันทึกข้อมูลเรียบร้อย!</p></div>';
+        if (is_array($kv_mail_test_notice) && !empty($kv_mail_test_notice['text'])) {
+            $notice_class = ($kv_mail_test_notice['type'] === 'success') ? 'notice-success' : 'notice-error';
+            echo '<div class="notice ' . esc_attr($notice_class) . ' is-dismissible"><p>' . wp_kses_post($kv_mail_test_notice['text']) . '</p></div>';
+        }
     }
 
     $phone        = get_option('site_phone',         get_theme_mod('site_phone',    ''));

@@ -588,6 +588,36 @@ $be_all_patterns = function_exists('kv_be_get_all_patterns') ? kv_be_get_all_pat
               </div>
             </div>
 
+            <div class="ts-sec-head">ส่งอีเมลแบบไม่ใช้ SMTP (Brevo ฟรี)</div>
+            <div class="ts-form-grid">
+              <div class="ts-field">
+                <label for="kv_brevo_api_key">Brevo API Key</label>
+                <input type="text" id="kv_brevo_api_key" name="kv_brevo_api_key" value="<?php echo esc_attr(get_option('kv_brevo_api_key', '')); ?>" placeholder="xkeysib-...">
+                <small class="ts-help">สมัครฟรีที่ Brevo แล้วสร้าง API Key (Free plan ส่งได้ประมาณ 300 อีเมล/วัน)</small>
+              </div>
+              <div class="ts-field">
+                <label for="kv_brevo_from">From Email (ผู้ส่ง)</label>
+                <input type="email" id="kv_brevo_from" name="kv_brevo_from" value="<?php echo esc_attr(get_option('kv_brevo_from', get_option('admin_email', ''))); ?>" placeholder="no-reply@yourdomain.com">
+                <small class="ts-help">ควรเป็นอีเมลโดเมนของเว็บไซต์ และต้องยืนยัน Sender ใน Brevo ก่อนใช้งาน</small>
+              </div>
+              <div class="ts-field">
+                <label for="kv_brevo_from_name">From Name (ชื่อผู้ส่ง)</label>
+                <input type="text" id="kv_brevo_from_name" name="kv_brevo_from_name" value="<?php echo esc_attr(get_option('kv_brevo_from_name', get_bloginfo('name'))); ?>" placeholder="<?php echo esc_attr(get_bloginfo('name')); ?>">
+              </div>
+              <div class="ts-field">
+                <label for="kv_brevo_test_to">Send to Email (ทดสอบส่งถึง)</label>
+                <input type="email" id="kv_brevo_test_to" name="kv_brevo_test_to" value="<?php echo esc_attr(get_option('kv_brevo_test_to', get_option('admin_email', ''))); ?>" placeholder="you@yourdomain.com">
+                <small class="ts-help">กดปุ่มเพื่อบันทึกค่าปัจจุบัน แล้วลองส่งอีเมลทดสอบทันที</small>
+              </div>
+              <div class="ts-field" style="justify-content:flex-end;">
+                <label>&nbsp;</label>
+                <button type="submit" class="button button-primary" name="kv_brevo_send_test" value="1" style="height:36px;">Send to Email</button>
+              </div>
+            </div>
+            <div class="ts-info">
+              เมื่อกรอก Brevo API Key และ From Email ถูกต้อง ระบบจะส่งเมลผ่าน HTTPS API อัตโนมัติ (ไม่ใช้พอร์ต SMTP)
+            </div>
+
             <div class="ts-sec-head">ที่อยู่</div>
             <div class="ts-form-grid">
               <div class="ts-field">
